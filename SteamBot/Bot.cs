@@ -70,12 +70,16 @@ namespace SteamBot
         // Log level to use for this bot
         Log.LogLevel LogLevel;
 
+        // Log file name to use for this bot
+        string LogFile;
+
         // The number, in milliseconds, between polls for the trade.
         int TradePollingInterval;
 
         string sessionId;
         string token;
         bool isprocess;
+        public bool IsRunning = false;
 
         public string AuthCode { get; set; }
 
@@ -118,7 +122,8 @@ namespace SteamBot
                 Console.WriteLine("Invalid LogLevel provided in configuration. Defaulting to 'INFO'");
                 LogLevel = Log.LogLevel.Info;
             }
-            log = new Log(botConfig.LogFile, this.DisplayName, LogLevel);
+            this.LogFile = botConfig.LogFile;
+            log = new Log(this.LogFile, this.DisplayName, LogLevel);
             CreateHandler = handlerCreator;
             BotControlClass = botConfig.BotControlClass;
 
@@ -162,7 +167,48 @@ namespace SteamBot
                 backgroundWorker.RunWorkerAsync();
 
             SteamClient.Connect();
+
+            IsRunning = true;
             
+            log.Success("Done Loading Bot!");
+
+            return true; // never get here
+        }
+
+        /// <summary>
+        /// Starts the callback thread and connects to Steam via SteamKit2.
+        /// </summary>
+        /// <remarks>
+        /// THIS NEVER RETURNS.
+        /// </remarks>
+        /// <returns><c>true</c>. See remarks</returns>
+        public bool RestartBot()
+        {
+            if (IsRunning)
+                return false;
+
+            log = new Log(LogFile, this.DisplayName, LogLevel);
+
+            // Hacking around https
+            ServicePointManager.ServerCertificateValidationCallback += SteamWeb.ValidateRemoteCertificate;
+
+            log.Debug("Initializing Steam Bot...");
+            SteamClient = new SteamClient();
+            SteamTrade = SteamClient.GetHandler<SteamTrading>();
+            SteamUser = SteamClient.GetHandler<SteamUser>();
+            SteamFriends = SteamClient.GetHandler<SteamFriends>();
+            SteamGameCoordinator = SteamClient.GetHandler<SteamGameCoordinator>();
+
+            backgroundWorker = new BackgroundWorker { WorkerSupportsCancellation = true };
+            backgroundWorker.DoWork += BackgroundWorkerOnDoWork;
+            backgroundWorker.RunWorkerCompleted += BackgroundWorkerOnRunWorkerCompleted;
+            backgroundWorker.RunWorkerAsync();
+            log.Info("Connecting...");
+
+            SteamClient.Connect();
+
+            IsRunning = true;
+
             log.Success("Done Loading Bot!");
 
             return true; // never get here
@@ -178,6 +224,8 @@ namespace SteamBot
             SteamClient.Disconnect();
 
             backgroundWorker.CancelAsync();
+
+            IsRunning = false;
         }
 
         /// <summary>

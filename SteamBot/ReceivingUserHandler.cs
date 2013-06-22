@@ -23,10 +23,13 @@ namespace SteamBot
             Log.Debug("attend: " + BotItemMap.Count);
             Log.Debug("num: " + NumberOfBots);
 
-            // Adding for complete attendance of all active bots, no need for inventory.
-            BotItemMap.Add(mySteamID, null);
+            if (!BotItemMap.ContainsKey(mySteamID))
+            {
+                // Adding for complete attendance of all active bots, no need for inventory.
+                BotItemMap.Add(mySteamID, null);
+                Admins.Add(mySteamID);
+            }
             Log.Info("[Receiving] SteamID: " + mySteamID + " checking in.");
-            Admins.Add(mySteamID);
 
             // Loop until another bot is ready to trade, or all bots have fully loaded.
             while (TradeReadyBots.Count == 0 && (BotItemMap.Count < NumberOfBots))
@@ -357,6 +360,14 @@ namespace SteamBot
             if (command == "craft")
             {
                 AutoCraftAll();
+            }
+            if (command == "stop")
+            {
+                Bot.StopBot();
+            }
+            if (command == "start")
+            {
+                Bot.RestartBot();
             }
         }
         /// <summary>

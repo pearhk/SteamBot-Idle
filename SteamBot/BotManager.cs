@@ -276,41 +276,40 @@ namespace SteamBot
 
             public void Stop()
             {
-                if (IsRunning)
+                if (IsRunning && UsingProcesses)
                 {
-                    if (UsingProcesses)
+                    if (!BotProcess.HasExited)
                     {
-                        if (!BotProcess.HasExited)
-                        {
-                            BotProcess.Kill();
-                            IsRunning = false;
-                        }
+                        BotProcess.Kill();
+                        IsRunning = false;
                     }
-                    else
-                    {
-                        if (TheBot != null)
-                        {
-                            TheBot.StopBot();
-                            IsRunning = false;
-                        }
-                    }
+                }
+                else if (TheBot != null && TheBot.IsRunning)
+                {
+                    TheBot.StopBot();
+                    IsRunning = false;
                 }
             }
 
             public void Start()
             {
-                if (!IsRunning)
+                if (UsingProcesses)
                 {
-                    if (UsingProcesses)
+                    if (IsRunning)
                     {
                         SpawnSteamBotProcess(BotConfigIndex);
                         IsRunning = true;
                     }
-                    else
-                    {
-                        SpawnBotThread(BotConfig);
-                        IsRunning = true;
-                    }
+                }
+                else if (TheBot == null)
+                {
+                    SpawnBotThread(BotConfig);
+                    IsRunning = true;
+                }
+                else if (!TheBot.IsRunning)
+                {
+                    SpawnBotThread(BotConfig);
+                    IsRunning = true;
                 }
             }
 

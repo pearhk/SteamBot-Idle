@@ -34,11 +34,13 @@ namespace SteamBot
             Bot.GetInventory();
 
             itemsToTrade = GetAllNonCrates(Bot.MyInventory);
-            BotItemMap.Add(mySteamID, itemsToTrade);
+            if (!BotItemMap.ContainsKey(mySteamID))
+            {
+                BotItemMap.Add(mySteamID, itemsToTrade);
+                Admins.Add(mySteamID);
+            }
 
             Log.Info("[Giving] SteamID: " + mySteamID + " checking in. " + BotItemMap.Count + " of " + NumberOfBots + " Bots.");
-
-            Admins.Add(mySteamID);
 
             if (BotItemMap[mySteamID].Count > 0)
             {

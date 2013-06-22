@@ -21,10 +21,14 @@ namespace SteamBot
 
         public override void OnLoginCompleted()
         {
-            // Adding for complete attendance of all active bots, no need for inventory.
-            BotItemMap.Add(mySteamID, null);
+            if (!BotItemMap.ContainsKey(mySteamID))
+            {
+                // Adding for complete attendance of all active bots, no need for inventory.
+                BotItemMap.Add(mySteamID, null);
+                Admins.Add(mySteamID);
+            }
             Log.Info("[Main] SteamID: " + mySteamID + " checking in.");
-            Admins.Add(mySteamID);
+            
             MainSID = Bot.SteamUser.SteamID;
         }
 
