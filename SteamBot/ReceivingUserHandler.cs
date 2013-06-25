@@ -19,7 +19,7 @@ namespace SteamBot
         }
 
         public override void OnLoginCompleted()
-        {                
+        {
             Log.Debug("attend: " + BotItemMap.Count);
             Log.Debug("num: " + NumberOfBots);
 
@@ -357,6 +357,7 @@ namespace SteamBot
 
         public override void OnBotCommand(string command)
         {
+            Log.Debug("Received command via console: " + command);
             if (command == "craft")
             {
                 AutoCraftAll();

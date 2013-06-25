@@ -737,8 +737,8 @@ namespace SteamBot
                 handler(this, e);
             else
             {
-                if (!this.isprocess)
-                {
+                //if (!this.isprocess)
+                //{
                     while (true)
                     {
                         if (this.AuthCode != null)
@@ -749,13 +749,13 @@ namespace SteamBot
 
                         Thread.Sleep(5);
                     }
-                }
-                else
-                {
-                    // Apparently we're a process. So read in the code from stdin.
-                    this.AuthCode = Console.ReadLine();
-                    e.SteamGuard = this.AuthCode;
-                }
+                //}
+                //else
+                //{
+                //    // Apparently we're a process. So read in the code from stdin.
+                //    this.AuthCode = Console.ReadLine();
+                //    e.SteamGuard = this.AuthCode;
+                //}
             }
         }
     }

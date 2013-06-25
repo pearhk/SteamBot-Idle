@@ -33,7 +33,15 @@ namespace SteamBot
                 }
             }
 
-            config.TotalBots = bots;
+            if (config.UseSeparateProcesses)
+            {
+                // Seperate Processes not currently supported.
+                config.TotalBots = 0;
+            }
+            else
+            {
+                config.TotalBots = bots;
+            }
 
             // None of this should be neccessary.
             //foreach (BotInfo bot in config.Bots)
@@ -122,7 +130,16 @@ namespace SteamBot
         /// </summary>
         public int TotalBots { get; set; }
 
+        /// <summary>
+        /// Gets or sets the user's custom options.
+        /// </summary>
+        /// <value>
+        /// A Dictionary of custom options where the option name is the key.
+        /// </value>
+        public Optional Options { get; set; }
+
         #endregion Top-level config properties
+
 
         /// <summary>
         /// Returns a <see cref="System.String" /> that represents this instance.
@@ -143,6 +160,12 @@ namespace SteamBot
             }
 
             return sb.ToString();
+        }
+
+        public class Optional
+        {
+            public int[] Crates { get; set; }
+            public bool MyOption { get; set; }
         }
 
         public class BotInfo

@@ -217,13 +217,13 @@ namespace SteamBot
                 {
                     if (cs[0].Equals(option.Name, StringComparison.CurrentCultureIgnoreCase))
                     {
-                        // Previously a third word was just ignored. Now everything after the
-                        // first word is passed.This will break other commands if a third word is added.
-                        if (cs.Length > 2)
+                        // Hard-coding "exec" to maintain exact function of other Options since it
+                        // is currently the only Option taking a multi-worded parameter
+                        if (cs.Length > 2 && option.Name.Equals("exec", StringComparison.CurrentCultureIgnoreCase))
                         {
                             option.Func(c.Remove(0, cs[0].Length + 1));
                         }
-                        else if (cs.Length == 2)
+                        else if (cs.Length > 1)
                         {
                             option.Func(cs[1]);
                         }

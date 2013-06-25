@@ -64,22 +64,48 @@ namespace SteamBot
             catch (Newtonsoft.Json.JsonReaderException)
             {
                 // handle basic json formatting screwups
-                Console.WriteLine("settings.json file is currupt or improperly formatted.");
+                Console.WriteLine("settings.json file is corrupt or improperly formatted.");
                 return;
             }
 
-            if (configObject.Bots.Length > botIndex)
+            if (!(configObject.Bots.Length > botIndex))
             {
-                Bot b = new Bot(configObject, configObject.Bots[botIndex], configObject.ApiKey, BotManager.UserHandlerCreator, true, true);
-                Console.Title = configObject.Bots[botIndex].DisplayName;
-                b.StartBot(); // never returns from this.
+                Console.WriteLine("Invalid bot index.");
+                return;
             }
+            // Moved Bot b out to allow access from the input loop
+            Bot b = new Bot(configObject, configObject.Bots[botIndex], configObject.ApiKey, BotManager.UserHandlerCreator, true, true);
+            Console.Title = configObject.Bots[botIndex].DisplayName;
+            b.StartBot(); // never returns from this.
+
+            string AuthCommand = "auth";
+            string ExecCommand = "exec";
 
             // this loop is needed to keep the botmode console alive.
-            // the sleep keeps the cpu usage low.
+            // instead of just sleeping, this thread will handle console input
             while (true)
             {
-                System.Threading.Thread.Sleep(1000);
+                string inputText = Console.ReadLine();
+
+                if (String.IsNullOrEmpty(inputText))
+                    continue;
+
+                // Small parse for BotMode input
+                var c = inputText.Trim();
+
+                var cs = c.Split(' ');
+
+                if (cs.Length > 1)
+                {
+                    if (cs[0].Equals(AuthCommand, StringComparison.CurrentCultureIgnoreCase))
+                    {
+                        b.AuthCode = cs[1].Trim();
+                    }
+                    else if (cs[0].Equals(ExecCommand, StringComparison.CurrentCultureIgnoreCase))
+                    {
+                        b.HandleBotCommand(c.Remove(0, cs[0].Length + 1));
+                    }
+                }
             }
         }
 

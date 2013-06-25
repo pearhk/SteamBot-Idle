@@ -180,7 +180,7 @@ namespace SteamBot
                     //  Write out auth code to the bot process' stdin
                     StreamWriter BotStdIn = botProcs[index].BotProcess.StandardInput;
 
-                    BotStdIn.WriteLine(AuthCode);
+                    BotStdIn.WriteLine("auth " + AuthCode);
                     BotStdIn.Flush();
                 }
             }
@@ -202,10 +202,14 @@ namespace SteamBot
                     {
                         botProcs[index].TheBot.HandleBotCommand(command);
                     }
-                    //else
-                    //{
-                    //    Use process stdin or pipes or something
-                    //}
+                    else
+                    {
+                        //  Write out exec code to the bot process' stdin
+                        StreamWriter BotStdIn = botProcs[index].BotProcess.StandardInput;
+
+                        BotStdIn.WriteLine("exec " + command);
+                        BotStdIn.Flush();
+                    }
                 }
                 else
                 {
@@ -295,7 +299,7 @@ namespace SteamBot
             {
                 if (UsingProcesses)
                 {
-                    if (IsRunning)
+                    if (!IsRunning)
                     {
                         SpawnSteamBotProcess(BotConfigIndex);
                         IsRunning = true;
