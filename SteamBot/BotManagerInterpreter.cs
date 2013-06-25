@@ -38,10 +38,10 @@ namespace SteamBot
                                              param => ShowCommand(param)),
                         new BotManagerOption("clear", "clears this console", s => clearConsole = s != null),
                         new BotManagerOption("auth", "auth (X)=(Y) where X = index of the configured bot and Y = the steamguard code",
-                            AuthSet),
+                                             AuthSet),
                         new BotManagerOption("exec", 
                                              "exec (X) (Y) where X = the username or index of the bot and Y = your custom command to execute",
-                                             param => ExecCommand(param))
+                                             ExecCommand)
                     };
         }
 
@@ -139,11 +139,11 @@ namespace SteamBot
             }
         }
 
-        private void ExecCommand(string param)
+        private void ExecCommand(string cmd)
         {
-            param = param.Trim();
+            cmd = cmd.Trim();
 
-            var cs = param.Split(' ');
+            var cs = cmd.Split(' ');
 
             if (cs.Length < 2)
             {
@@ -152,7 +152,7 @@ namespace SteamBot
             }
 
             // Send the rest of the input as is
-            var command = param.Remove(0, cs[0].Length + 1);
+            var command = cmd.Remove(0, cs[0].Length + 1);
 
             int i;
             // Try index first then search usernames
@@ -165,11 +165,11 @@ namespace SteamBot
             }
             else if (!String.IsNullOrEmpty(cs[0]))
             {
-                for (int index = 0; i < manager.ConfigObject.Bots.Length; i++)
+                for (int index = 0; index < manager.ConfigObject.Bots.Length; index++)
                 {
                     if (manager.ConfigObject.Bots[index].Username == cs[0])
                     {
-                        manager.SendCommand(i, command);
+                        manager.SendCommand(index, command);
                         return;
                     }
                 }

@@ -68,7 +68,7 @@ namespace SteamBot
                 return;
             }
 
-            if (!(configObject.Bots.Length > botIndex))
+            if (!(botIndex < configObject.Bots.Length))
             {
                 Console.WriteLine("Invalid bot index.");
                 return;
