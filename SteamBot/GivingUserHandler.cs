@@ -140,7 +140,7 @@ namespace SteamBot
 
             if (added > 0)
             {
-                Log.Info("Added " + added + " items.");
+                Log.Success("Added " + added + " items.");
                 System.Threading.Thread.Sleep(50);
                 if (!SendMessage("ready"))
                 {

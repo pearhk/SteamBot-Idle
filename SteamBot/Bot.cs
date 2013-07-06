@@ -170,7 +170,7 @@ namespace SteamBot
 
             IsRunning = true;
             
-            log.Success("Done Loading Bot!");
+            log.Info("Done Loading Bot!");
 
             return true; // never get here
         }
@@ -209,7 +209,7 @@ namespace SteamBot
 
             IsRunning = true;
 
-            log.Success("Done Loading Bot!");
+            log.Info("Done Loading Bot!");
 
             return true; // never get here
         }

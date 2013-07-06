@@ -32,6 +32,10 @@ namespace SteamBot
             Log.Info("[Receiving] SteamID: " + mySteamID + " checking in.");
 
             // Loop until another bot is ready to trade, or all bots have fully loaded.
+            while (NumberOfBots < 0)
+            {
+                Thread.Sleep(1000);
+            }
             while (TradeReadyBots.Count == 0 && (BotItemMap.Count < NumberOfBots))
             {
                 Log.Info("Waiting for bots...");
@@ -182,6 +186,7 @@ namespace SteamBot
 
         public override void OnTradeInit()
         {
+            Log.Success("Trade Started");
             if (OtherSID == MainSID)
             {
                 Thread.Sleep(500);
@@ -398,11 +403,6 @@ namespace SteamBot
             if (!Bot.OpenTrade(tradeSID))
             {
                 Log.Info("Bot already in trade, closing and starting another.");
-                CancelTrade();
-
-                Log.Warn("[Receiving] TRADE CLOSED");
-                Bot.CloseTrade();
-                Bot.OpenTrade(tradeSID);
             }
         }
 

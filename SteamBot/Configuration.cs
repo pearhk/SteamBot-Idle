@@ -36,6 +36,7 @@ namespace SteamBot
             if (config.UseSeparateProcesses)
             {
                 // Seperate Processes not currently supported.
+                Console.WriteLine("Seperate Processes not supported.");
                 config.TotalBots = 0;
             }
             else

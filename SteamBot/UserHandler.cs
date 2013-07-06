@@ -39,7 +39,7 @@ namespace SteamBot
         protected static Configuration Settings = null;
         
         // Specific settings in the config
-        protected static int NumberOfBots;
+        protected static int NumberOfBots = -1;
         protected static bool AutoCraftWeps;
         protected static bool DeleteCrates;
         protected static bool ExcludedCrates;
@@ -504,6 +504,7 @@ namespace SteamBot
         protected void Craft(ulong[] craftItems)
         {
             Log.Info("Crafting " + craftItems.Length + " items.");
+            Log.Debug("Item IDs: " + craftItems[0] + " and " + craftItems[1]);
             TF2GC.Crafting.CraftItems(Bot, craftItems);
 
             // Give time for callbacks to update, otherwise backpack may not be up-to-date
