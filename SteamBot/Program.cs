@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Runtime.InteropServices;
 using NDesk.Options;
+using System.Threading;
 
 namespace SteamBot
 {
@@ -99,11 +100,13 @@ namespace SteamBot
                 {
                     if (cs[0].Equals(AuthCommand, StringComparison.CurrentCultureIgnoreCase))
                     {
-                        b.AuthCode = cs[1].Trim();
+                        var AuthThread = new Thread(() => b.AuthCode = cs[1].Trim());
+                        AuthThread.Start();
                     }
                     else if (cs[0].Equals(ExecCommand, StringComparison.CurrentCultureIgnoreCase))
                     {
-                        b.HandleBotCommand(c.Remove(0, cs[0].Length + 1));
+                        var CommandThread = new Thread(() => b.HandleBotCommand(c.Remove(0, cs[0].Length + 1)));
+                        CommandThread.Start();
                     }
                 }
             }
@@ -167,7 +170,8 @@ namespace SteamBot
                     if (String.IsNullOrEmpty(inputText))
                         continue;
 
-                    bmi.CommandInterpreter(inputText);
+                    var CommandThread = new Thread(() => bmi.CommandInterpreter(inputText));
+                    CommandThread.Start();
 
                     Console.Write("botmgr > ");
 

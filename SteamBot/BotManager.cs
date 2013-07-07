@@ -312,7 +312,7 @@ namespace SteamBot
                 }
                 else if (!TheBot.IsRunning)
                 {
-                    SpawnBotThread(BotConfig);
+                    TheBot.RestartBot();
                     IsRunning = true;
                 }
             }

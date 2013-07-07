@@ -329,7 +329,17 @@ namespace SteamBot
 
         public void HandleBotCommand(string command)
         {
-            GetUserHandler(SteamClient.SteamID).OnBotCommand(command);
+            try
+            {
+                GetUserHandler(SteamClient.SteamID).OnBotCommand(command);
+            }
+            catch (Exception e)
+            {
+                // Writing to console because odds are the error was caused by a disposed log.
+                // This works as a strange but effective way to stop other processes.
+                Console.WriteLine(string.Format("Exception caught in BotCommand Thread: {0}", e));
+            }
+
         }
 
         void HandleSteamMessage (CallbackMsg msg)
