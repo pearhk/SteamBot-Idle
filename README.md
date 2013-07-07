@@ -1,6 +1,6 @@
 ## Basic Info
 
-This branch **(Idle-Trader)** is designed to automatically collect items from alternate accounts and optionally craft all weapons for easy use. Setup is easy, just follow all instructions for Jessecar96's Steambot, then change your settings file accordingly. The settings-template+info.json file in Bin/Debug provides additional information about each setting.
+This repository is a fork of Jessecar96/SteamBot that is designed to automatically collect items from alternate accounts and optionally craft all weapons for easy use. Setup is easy, just follow all instructions for Jessecar96's Steambot (original info below), then change your settings file accordingly. The settings-template+info.json file in Bin/Debug provides additional information about each setting.
 
 Basic setup of your accounts require you to have an idle "hub" account which receives items from all other idling accounts. This "hub" will use **ReceivingUserHandler**, while the other idles will use **GivingUserHandler**. 
 
@@ -11,8 +11,8 @@ Optionally you can also add your "Main" account to log in using **MainUserHandle
 **Double Note:** This is not error-proof, testing for me is limited to about once a week, but the program *should* be able trade and craft for every idle you have. (for me, it handled 100 alts with 2 program restarts) If you see several warnings or errors in log during a trade, the program should continue unimpeded, the bot will simply retry the trade. If an error causes the bot to stop, restarting the program should still work. Be sure to make note of any errors though, and if you can track the source, feel free to offer up a fix.
 
 ***New Feature*** -
-Bot now accepts commands via bot manager console (Only for threaded mode only. Processes needs extra work)
-"exec (X) (Y)" where X = the username or index of the bot and Y = your custom command to execute. Your command can include spaces and be as long as you want. Handle the command by overriding UserHandler.OnBotCommand
+Bot now accepts custom commands via bot manager console. I will use this to add easier interaction and item management with the hub.
+"exec (X) (Y)" where X = the username or index of the bot and Y = your custom command to execute. Your command can include spaces and be as long as you want. Handle the command by overriding the correct userhandler's `OnBotCommand`.
 
 Planning to add soon:
  - Backpack count management (basic implementation in use though untested, needs smarter tracking still)
@@ -25,6 +25,14 @@ Planning to add eventually:
  - Inventory Management (nothing fancy like steam item manager, but item manipulation/organization none-the-less)
  - More configuration options from settings.json
 
+## Basic Operation
+The bot loaded with `ReceivingUserHandler` will add itself to the "attendance" list that will hold all active bots, then it will wait for bots with GivingUserHandler to start and login. As soon as a "Giving" bot is ready to trade, the hub will initiate the trade even though most of the bots haven't finished loading. This is to greatly reduce overall run time, though currently it makes the log difficult to read. If this bot gets close to its maximum backpack capacity (currently set to 20 or less open slots), it will craft all weapons if `AutoCraftWeapons = true`. After trading with every "Giving" bot, this hub would then craft again. Then it checks for a MainUserHandler to give all of its items.
+
+A bot loaded with `GivingUserHandler` will add itself to the "attendance" list, and then if `AutoCraftWeapons = true` it will attempt to craft any weapons it has. It will then check for any items to trade (anything other than the normal dropping crates). If it has items, it will add itself to the tradelist, otherwise the bot will just stop.
+
+(Optional) A bot loaded with `MainUserHandler` will add itself to the "attendance" list and wait for all other bots to trade. Once finished, the "hub" will then trade all items to it.
+
+_______________________________________________________________________________________________
 All credit where credit is due, with Jessecar and all contributors to SteamBot. Original SteamBot info below.
 _______________________________________________________________________________________________
 **SteamBot** is a bot written in C# for the purpose of interacting with Steam Chat and Steam Trade.  As of right now, about 8 contributors have all added to the bot.  The bot is publicly available under the MIT License. Check out [LICENSE] for more details.

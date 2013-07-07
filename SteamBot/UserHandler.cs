@@ -532,7 +532,7 @@ namespace SteamBot
             Log.Info("Number of weapons to craft: " + myCleanWeapons.Count);
             if (myCleanWeapons.Count < 2)
             {
-                Log.Error("There are not enough weapons to craft");
+                Log.Warn("There are not enough weapons to craft");
                 return false;
             }
 

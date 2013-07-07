@@ -49,8 +49,8 @@ namespace SteamBot
             }
             else
             {
-                Log.Info("SteamID: " + mySteamID + " did not have a trade-worthy item.");
-                Log.Info("Stopping bot.");
+                Log.Warn("SteamID: " + mySteamID + " did not have a trade-worthy item.");
+                Log.Warn("Stopping bot.");
                 Bot.StopBot();
             }
         }

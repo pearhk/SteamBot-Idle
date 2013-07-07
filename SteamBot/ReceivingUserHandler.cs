@@ -394,8 +394,12 @@ namespace SteamBot
                 }
                 else
                 {
-                    Log.Error("Backpack approaching maximum capacity. May not be able to trade soon...");
+                    Log.Warn("Backpack approaching maximum capacity. May not be able to trade soon...");
                 }
+            }
+            else if (Bot.MyInventory.Items.Length >= Bot.MyInventory.NumSlots)
+            {
+                Log.Error("Backpack is at or over maximum capacity. Trade is unlikely to succeed.");
             }
 
             Log.Info("Starting Trade with: " + tradeSID);
