@@ -448,7 +448,7 @@ namespace SteamBot
                     if (!friends.Contains(friend.SteamID))
                     {
                         friends.Add(friend.SteamID);
-                        if (friend.Relationship == EFriendRelationship.PendingInvitee &&
+                        if (friend.Relationship == EFriendRelationship.RequestRecipient &&
                             GetUserHandler(friend.SteamID).OnFriendAdd())
                         {
                             SteamFriends.AddFriend(friend.SteamID);

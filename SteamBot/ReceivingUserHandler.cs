@@ -78,7 +78,6 @@ namespace SteamBot
                 if (message == "failed")
                 {
                     CancelTrade();
-                    OnTradeClose();
                 }
             }
             else
@@ -99,10 +98,25 @@ namespace SteamBot
         public override void OnTradeError(string error)
         {
             Log.Warn("OnTradeError: " + error);
+
+            if (error.Equals("InitiatorAlreadyTrading", StringComparison.CurrentCultureIgnoreCase))
+            {
+                Log.Info("Steam says a trade or request is still active. Telling target to attempt to close the trade, then waiting 5s to try again.");
+
+                Bot.SteamFriends.SendChatMessage(TradeReadyBots[0], EChatEntryType.ChatMsg, "failed");
+                Thread.Sleep(5000);
+            }
+
             if (OtherSID != MainSID)
             {
-                CancelTrade();
-                OnTradeClose();
+                if (Trade != null)
+                {
+                    CancelTrade();
+                }
+                else
+                {
+                    OnTradeClose();
+                }
             }
             else
             {
@@ -179,15 +193,18 @@ namespace SteamBot
             }
             else
             {
-                Log.Success("Completed Process, stopping bot.");
-                Bot.StopBot();
+                Log.Success("Success: All actions completed.");
             }
         }
 
         public override void OnTradeInit()
         {
             Log.Success("Trade Started");
-            if (OtherSID == MainSID)
+            if (OtherSID != MainSID)
+            {
+                Bot.SteamFriends.SendChatMessage(OtherSID, EChatEntryType.ChatMsg, "initialized");
+            }
+            else
             {
                 Thread.Sleep(500);
                 Log.Info("Getting Inventory");
@@ -234,7 +251,7 @@ namespace SteamBot
 
         public override void OnTradeAddItem(Schema.Item schemaItem, Inventory.Item inventoryItem) 
         { 
-            Log.Debug("Item has been added");
+            Log.Debug("Item has been added. ID: " + inventoryItem.Id);
             totalAdded++;
         }
 

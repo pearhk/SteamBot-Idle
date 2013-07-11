@@ -172,6 +172,13 @@ namespace SteamBot
         protected bool CancelTrade()
         {
             Log.Debug("Cancelling trade");
+
+            if (Trade == null)
+            {
+                Log.Error("There is no trade to Cancel");
+                return false;
+            }
+
             int x = 0;
             Success = false;
             while (Success == false && x < 5)
@@ -198,7 +205,6 @@ namespace SteamBot
             if (!Success)
             {
                 Log.Error("Could not cancel trade");
-                Thread.Sleep(500);
             }
             return Success;
         }
@@ -224,12 +230,14 @@ namespace SteamBot
                     Log.Warn("Set Ready failed.");
                     var s = string.Format("Loop #{0}{1}Exception:{2}", x, Environment.NewLine, te);
                     Log.Debug(s);
+                    Thread.Sleep(250);
                 }
                 catch (Exception e)
                 {
                     Log.Warn("Set Ready failed");
                     var s = string.Format("Loop #{0}{1}Exception:{2}", x, Environment.NewLine, e);
                     Log.Debug(s);
+                    Thread.Sleep(250);
                 }
             }
             if (!Success)
@@ -260,12 +268,14 @@ namespace SteamBot
                     Log.Warn("Send Message failed.");
                     var s = string.Format("Loop #{0}{1}Exception:{2}", x, Environment.NewLine, te);
                     Log.Debug(s);
+                    Thread.Sleep(250);
                 }
                 catch (Exception e)
                 {
                     Log.Warn("Send Message failed");
                     var s = string.Format("Loop #{0}{1}Exception:{2}", x, Environment.NewLine, e);
                     Log.Debug(s);
+                    Thread.Sleep(250);
                 }
             }
             if (!Success)
@@ -296,12 +306,14 @@ namespace SteamBot
                     Log.Warn("Accept Trade failed.");
                     var s = string.Format("Loop #{0}{1}Exception:{2}", x, Environment.NewLine, te);
                     Log.Debug(s);
+                    Thread.Sleep(250);
                 }
                 catch (Exception e)
                 {
                     Log.Warn("Accept Trade failed");
                     var s = string.Format("Loop #{0}{1}Exception:{2}", x, Environment.NewLine, e);
                     Log.Debug(s);
+                    Thread.Sleep(250);
                 }
             }
             if (!Success)
@@ -332,12 +344,14 @@ namespace SteamBot
                     Log.Warn("Add Item failed.");
                     var s = string.Format("Loop #{0}{1}Exception:{2}", x, Environment.NewLine, te);
                     Log.Debug(s);
+                    Thread.Sleep(250);
                 }
                 catch (Exception e)
                 {
                     Log.Warn("Add Item failed");
                     var s = string.Format("Loop #{0}{1}Exception:{2}", x, Environment.NewLine, e);
                     Log.Debug(s);
+                    Thread.Sleep(250);
                 }
             }
             if (!Success)
@@ -368,12 +382,14 @@ namespace SteamBot
                     Log.Warn("Remove Item failed.");
                     var s = string.Format("Loop #{0}{1}Exception:{2}", x, Environment.NewLine, te);
                     Log.Debug(s);
+                    Thread.Sleep(250);
                 }
                 catch (Exception e)
                 {
                     Log.Warn("Remove Item failed");
                     var s = string.Format("Loop #{0}{1}Exception:{2}", x, Environment.NewLine, e);
                     Log.Debug(s);
+                    Thread.Sleep(250);
                 }
             }
             if (!Success)
@@ -532,7 +548,7 @@ namespace SteamBot
             Log.Info("Number of weapons to craft: " + myCleanWeapons.Count);
             if (myCleanWeapons.Count < 2)
             {
-                Log.Warn("There are not enough weapons to craft");
+                Log.Info("There are not enough weapons to craft");
                 return false;
             }
 

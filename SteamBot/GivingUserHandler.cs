@@ -9,6 +9,9 @@ namespace SteamBot
 {
     public class GivingUserHandler : UserHandler
     {
+        bool OtherInit = false;
+        bool MeInit = false;
+
         public GivingUserHandler(Bot bot, SteamID sid, Configuration config) : base(bot, sid, config) 
         {
             Success = false;
@@ -40,16 +43,16 @@ namespace SteamBot
                 Admins.Add(mySteamID);
             }
 
-            Log.Info("[Giving] SteamID: " + mySteamID + " checking in. " + BotItemMap.Count + " of " + NumberOfBots + " Bots.");
+            Log.Info("[Giving] " + Bot.DisplayName + " checking in. " + BotItemMap.Count + " of " + NumberOfBots + " Bots.");
 
             if (BotItemMap[mySteamID].Count > 0)
             {
                 TradeReadyBots.Add(mySteamID);
-                Log.Info("SteamID: " + mySteamID + " has items. Added to list." + TradeReadyBots.Count + " Bots waiting to trade.");
+                Log.Info(Bot.DisplayName + " has items. Added to list." + TradeReadyBots.Count + " Bots waiting to trade.");
             }
             else
             {
-                Log.Warn("SteamID: " + mySteamID + " did not have a trade-worthy item.");
+                Log.Warn(Bot.DisplayName + " did not have an item to trade.");
                 Log.Warn("Stopping bot.");
                 Bot.StopBot();
             }
@@ -74,14 +77,38 @@ namespace SteamBot
 
         public override void OnMessage(string message, EChatEntryType type) 
         {
-            if ((OtherSID == PrimaryAltSID) && (message == "ready"))
+            System.Threading.Thread.Sleep(100);
+            Log.Debug("Message Received: " + message);
+
+            switch(message)
             {
-                Bot.SteamFriends.SendChatMessage(PrimaryAltSID, EChatEntryType.ChatMsg, "ready");
+                case "initialized": 
+                    OtherInit = true;
+                    if (MeInit)
+                    {
+                        AddAllItems();
+                    }
+                    break;
+
+                case "ready":
+                    if (OtherSID == PrimaryAltSID)
+                    {
+                        Bot.SteamFriends.SendChatMessage(PrimaryAltSID, EChatEntryType.ChatMsg, "ready");
+                    }
+                    break;
+
+                case "failed":
+                    CancelTrade();
+                    break;
             }
+            
         }
 
         public override bool OnTradeRequest()
         {
+            MeInit = false;
+            OtherInit = false;
+
             Thread.Sleep(200);
             if (IsAdmin)
             {
@@ -134,8 +161,60 @@ namespace SteamBot
 
         public override void OnTradeInit()
         {
+            Log.Success("Trade Started");
+
+            MeInit = true;
+
+            if (OtherInit)
+            {
+                AddAllItems();
+            }
+        }
+
+        public override void OnTradeAddItem(Schema.Item schemaItem, Inventory.Item inventoryItem) { }
+
+        public override void OnTradeRemoveItem(Schema.Item schemaItem, Inventory.Item inventoryItem) { }
+
+        public override void OnTradeMessage(string message) 
+        {
+            System.Threading.Thread.Sleep(100);
+            Log.Debug("Message Received: " + message);
+
+            switch (message)
+            {
+                case "ready":
+                    if (!SetReady(true))
+                    {
+                        CancelTrade();
+                        OnTradeClose();
+                    }
+                    break;
+            }
+        }
+
+        public override void OnTradeReady(bool ready)
+        {
+            Log.Debug("OnTradeReady");
+            Thread.Sleep(100);
+
+            if (ready && IsAdmin)
+            {
+                TradeAccept();
+            }
+        }
+
+        public override void OnTradeAccept()
+        {
+            TradeReadyBots.Remove(mySteamID);
+            OnTradeClose();
+        }
+
+        public void AddAllItems()
+        {
             Thread.Sleep(500);
+
             Log.Debug("Adding all items.");
+
             uint added = AddItemsFromList(BotItemMap[mySteamID]);
 
             if (added > 0)
@@ -171,41 +250,6 @@ namespace SteamBot
             }
         }
 
-        public override void OnTradeAddItem(Schema.Item schemaItem, Inventory.Item inventoryItem) { }
-
-        public override void OnTradeRemoveItem(Schema.Item schemaItem, Inventory.Item inventoryItem) { }
-
-        public override void OnTradeMessage(string message) 
-        {
-            System.Threading.Thread.Sleep(100);
-            Log.Debug("Message Received: " + message);
-
-            if (message == "ready")
-            {
-                if (!SetReady(true))
-                {
-                    CancelTrade();
-                    OnTradeClose();
-                }
-            }
-        }
-
-        public override void OnTradeReady(bool ready)
-        {
-            Log.Debug("OnTradeReady");
-            Thread.Sleep(100);
-
-            if (ready && IsAdmin)
-            {
-                TradeAccept();
-            }
-        }
-
-        public override void OnTradeAccept()
-        {
-            TradeReadyBots.Remove(mySteamID);
-            OnTradeClose();
-        }
         public void TradeAccept()
         {
             Thread.Sleep(100);
