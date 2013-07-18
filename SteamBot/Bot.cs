@@ -75,6 +75,7 @@ namespace SteamBot
         string sessionId;
         string token;
         bool isprocess;
+        public bool IsRunning = false;
 
         public string AuthCode { get; set; }
 
@@ -149,6 +150,8 @@ namespace SteamBot
         /// <returns><c>true</c>. See remarks</returns>
         public bool StartBot()
         {
+            IsRunning = true;
+
             log.Info("Connecting...");
 
             if (!backgroundWorker.IsBusy)
@@ -168,7 +171,9 @@ namespace SteamBot
         /// </summary>
         public void StopBot()
         {
-            log.Debug("Tryring to shut down bot thread.");
+            IsRunning = false;
+
+            log.Debug("Trying to shut down bot thread.");
             SteamClient.Disconnect();
 
             backgroundWorker.CancelAsync();
@@ -379,7 +384,7 @@ namespace SteamBot
                     if (!friends.Contains(friend.SteamID))
                     {
                         friends.Add(friend.SteamID);
-                        if (friend.Relationship == EFriendRelationship.PendingInvitee &&
+                        if (friend.Relationship == EFriendRelationship.RequestRecipient &&
                             GetUserHandler(friend.SteamID).OnFriendAdd())
                         {
                             SteamFriends.AddFriend(friend.SteamID);
@@ -436,25 +441,34 @@ namespace SteamBot
                 {
                     tradeManager.InitializeTrade(SteamUser.SteamID, callback.OtherClient);
                 }
-                catch 
+                catch (WebException we)
+                {                 
+                    SteamFriends.SendChatMessage(callback.OtherClient,
+                             EChatEntryType.ChatMsg,
+                             "Trade error: " + we.Message);
+
+                    SteamTrade.RespondToTrade(callback.TradeID, false);
+                    return;
+                }
+                catch (Exception)
                 {
-                    SteamFriends.SendChatMessage(callback.OtherClient, 
-                                                 EChatEntryType.ChatMsg,
-                                                 "Trade declined. Could not correctly fetch your backpack.");
-                    
-                    SteamTrade.RespondToTrade (callback.TradeID, false);
+                    SteamFriends.SendChatMessage(callback.OtherClient,
+                             EChatEntryType.ChatMsg,
+                             "Trade declined. Could not correctly fetch your backpack.");
+
+                    SteamTrade.RespondToTrade(callback.TradeID, false);
                     return;
                 }
 
-                if (tradeManager.OtherInventory.IsPrivate)
-                {
-                    SteamFriends.SendChatMessage(callback.OtherClient, 
-                                                 EChatEntryType.ChatMsg,
-                                                 "Trade declined. Your backpack cannot be private.");
+                //if (tradeManager.OtherInventory.IsPrivate)
+                //{
+                //    SteamFriends.SendChatMessage(callback.OtherClient, 
+                //                                 EChatEntryType.ChatMsg,
+                //                                 "Trade declined. Your backpack cannot be private.");
 
-                    SteamTrade.RespondToTrade (callback.TradeID, false);
-                    return;
-                }
+                //    SteamTrade.RespondToTrade (callback.TradeID, false);
+                //    return;
+                //}
 
                 if (CurrentTrade == null && GetUserHandler (callback.OtherClient).OnTradeRequest ())
                     SteamTrade.RespondToTrade (callback.TradeID, true);
@@ -499,7 +513,8 @@ namespace SteamBot
         {
             // get sentry file which has the machine hw info saved 
             // from when a steam guard code was entered
-            FileInfo fi = new FileInfo(String.Format("{0}.sentryfile", logOnDetails.Username));
+            Directory.CreateDirectory(System.IO.Path.Combine(System.Windows.Forms.Application.StartupPath, "sentryfiles"));
+            FileInfo fi = new FileInfo(System.IO.Path.Combine("sentryfiles",String.Format("{0}.sentryfile", logOnDetails.Username)));
 
             if (fi.Exists && fi.Length > 0)
                 logOnDetails.SentryFileHash = SHAHash(File.ReadAllBytes(fi.FullName));
@@ -533,7 +548,9 @@ namespace SteamBot
         {
             byte[] hash = SHAHash (machineAuth.Data);
 
-            File.WriteAllBytes (String.Format ("{0}.sentryfile", logOnDetails.Username), machineAuth.Data);
+            Directory.CreateDirectory(System.IO.Path.Combine(System.Windows.Forms.Application.StartupPath, "sentryfiles"));
+
+            File.WriteAllBytes (System.IO.Path.Combine("sentryfiles", String.Format("{0}.sentryfile", logOnDetails.Username)), machineAuth.Data);
             
             var authResponse = new SteamUser.MachineAuthDetails
             {
