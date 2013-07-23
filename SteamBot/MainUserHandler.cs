@@ -28,7 +28,8 @@ namespace SteamBot
                 Admins.Add(mySteamID);
             }
             Log.Info("[Main] SteamID: " + mySteamID + " checking in.");
-            
+
+            MainUHIsRunning = true;
             MainSID = Bot.SteamUser.SteamID;
         }
 
@@ -40,7 +41,7 @@ namespace SteamBot
 
         public override bool OnTradeRequest()
         {
-            if (PrimaryAltSID == OtherSID)
+            if (ReceivingSID == OtherSID)
             {
                 return true;
             }
@@ -57,7 +58,15 @@ namespace SteamBot
             Log.Info("User was kicked because he was AFK.");
         }
 
-        public override void OnTradeInit() {  }
+        public override void OnTradeInit()
+        {
+            Log.Success("Trade Started");
+
+            if (OtherSID != MainSID && OtherSID != CrateSID)
+            {
+                Bot.SteamFriends.SendChatMessage(OtherSID, EChatEntryType.ChatMsg, "initialized");
+            }
+        }
 
         public override void OnTradeAddItem(Schema.Item schemaItem, Inventory.Item inventoryItem) { }
 
@@ -80,7 +89,7 @@ namespace SteamBot
 
         public override void OnTradeReady(bool ready)
         {
-            if (OtherSID == PrimaryAltSID)
+            if (OtherSID == ReceivingSID)
             {
                 SetReady(true);
             }

@@ -4,12 +4,14 @@
 "mainLog": "syslog.log",
 "UseSeparateProcesses": "false",
 "AutoStartAllBots": "true",
-"AutoCraftWeapons": "true",
+"BotMode": "1",
 "Options":
         {
-            
+            "AutoCraftWeapons": "false",
+            "SavedCrates": []
+            "DeleteCrates": "false"
         }
-		,
+        ,
 "Bots": [
         {
             "Username":"BOT USERNAME",

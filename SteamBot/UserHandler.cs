@@ -14,6 +14,8 @@ namespace SteamBot
     /// </summary>
     public abstract class UserHandler
     {
+        protected enum Actions { DoNothing, NormalHarvest, CrateManager }
+
         protected Bot Bot;
         protected SteamID OtherSID;
         protected SteamID mySteamID;
@@ -33,16 +35,26 @@ namespace SteamBot
         // public static bool adderReadySet = false;
         // public static bool errorOcccured = false;
         protected static SteamID MainSID { get; set; }
-        protected static SteamID PrimaryAltSID { get; set; }
+        protected static SteamID ReceivingSID { get; set; }
+        protected static SteamID CrateSID { get; set; }
 
         // Dragging Configuration all the way here just to make future options much easier to manage.
         protected static Configuration Settings = null;
+
+        // Important Startup mode value, defaulting to "do nothing"
+        protected static int BotMode = 0;
         
-        // Specific settings in the config
+        // Recreating specific settings in the config here for readability in the UserHandlers 
         protected static int NumberOfBots = -1;
         protected static bool AutoCraftWeps;
+
+        protected static bool ManageCrates;
         protected static bool DeleteCrates;
-        protected static bool ExcludedCrates;
+        protected static int[] ExcludedCrates;
+
+        protected static bool CrateUHIsRunning;
+        protected static bool MainUHIsRunning;
+
         public UserHandler(Bot bot, SteamID sid, Configuration config)
         {
             
@@ -50,8 +62,17 @@ namespace SteamBot
             OtherSID = sid;
             if (Settings == null)
             {
+                BotMode = config.BotMode;
                 NumberOfBots = config.TotalBots;
-                AutoCraftWeps = config.AutoCraftWeapons;
+
+                AutoCraftWeps = config.Options.AutoCraftWeapons;
+                ManageCrates = config.Options.ManageCrates;
+                DeleteCrates = config.Options.DeleteCrates;
+                ExcludedCrates = config.Options.SavedCrates;
+
+                CrateUHIsRunning = config.HasCrateUHLoaded;
+                MainUHIsRunning = config.HasMainUHLoaded;
+
                 Settings = config;
             }
         }
@@ -487,8 +508,7 @@ namespace SteamBot
         /// <returns>Number of items added.</returns>
         protected uint AddItemsFromList(List<Inventory.Item> items)
         {
-            Log.Debug("Method called");
-            Log.Debug("" + items.Count);
+            Log.Debug("Adding " + items.Count + " items.");
             uint added = 0;
 
             foreach (Inventory.Item item in items)
