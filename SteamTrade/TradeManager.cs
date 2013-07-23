@@ -30,18 +30,18 @@ namespace SteamTrade
         /// <param name='token'>
         /// Session token. Cannot be null.
         /// </param>
-        public TradeManager (string apiKey, string sessionId, string token)
+        public TradeManager(string apiKey, string sessionId, string token)
         {
             if (apiKey == null)
-                throw new ArgumentNullException ("apiKey");
+                throw new ArgumentNullException("apiKey");
 
             if (sessionId == null)
-                throw new ArgumentNullException ("sessionId");
+                throw new ArgumentNullException("sessionId");
 
             if (token == null)
-                throw new ArgumentNullException ("token");
+                throw new ArgumentNullException("token");
 
-            SetTradeTimeLimits (MaxTradeTimeDefault, MaxGapTimeDefault, TradePollingIntervalDefault);
+            SetTradeTimeLimits(MaxTradeTimeDefault, MaxGapTimeDefault, TradePollingIntervalDefault);
 
             this.apiKey = apiKey;
             this.sessionId = sessionId;
@@ -73,7 +73,7 @@ namespace SteamTrade
             get;
             private set;
         }
-        
+
         /// <summary>
         /// Gets the Trade polling interval in milliseconds.
         /// </summary>
@@ -148,7 +148,7 @@ namespace SteamTrade
         /// Max gap between user action in seconds.
         /// </param>
         /// <param name='pollingInterval'>The trade polling interval in milliseconds.</param>
-        public void SetTradeTimeLimits (int maxTradeTime, int maxActionGap, int pollingInterval)
+        public void SetTradeTimeLimits(int maxTradeTime, int maxActionGap, int pollingInterval)
         {
             MaxTradeTimeSec = maxTradeTime;
             MaxActionGapSec = maxActionGap;
@@ -171,24 +171,24 @@ namespace SteamTrade
         /// <remarks>
         /// If the needed inventories are <c>null</c> then they will be fetched.
         /// </remarks>
-        public Trade StartTrade (SteamID  me, SteamID other)
+        public Trade StartTrade(SteamID me, SteamID other)
         {
             if (OtherInventory == null || MyInventory == null)
-                InitializeTrade (me, other);
+                InitializeTrade(me, other);
 
-            var t = new Trade (me, other, sessionId, token, apiKey, MyInventory, OtherInventory);
+            var t = new Trade(me, other, sessionId, token, MyInventory, OtherInventory);
 
             t.OnClose += delegate
             {
                 IsTradeThreadRunning = false;
 
                 if (OnTradeEnded != null)
-                    OnTradeEnded (this, null);
+                    OnTradeEnded(this, null);
             };
 
             trade = t;
 
-            StartTradeThread ();
+            StartTradeThread();
 
             return t;
         }
@@ -200,7 +200,7 @@ namespace SteamTrade
         /// Also, nulls out the inventory objects so they have to be fetched
         /// again if a new trade is started.
         /// </remarks>            
-        public void StopTrade ()
+        public void StopTrade()
         {
             // TODO: something to check that trade was the Trade returned from StartTrade
             OtherInventory = null;
@@ -222,58 +222,58 @@ namespace SteamTrade
         /// This should be done anytime a new user is traded with or the inventories are out of date. It should
         /// be done sometime before calling <see cref="StartTrade"/>.
         /// </remarks>
-        public void InitializeTrade (SteamID me, SteamID other)
+        public void InitializeTrade(SteamID me, SteamID other)
         {
             // fetch other player's inventory from the Steam API.
-            OtherInventory = Inventory.FetchInventory (other.ConvertToUInt64 (), apiKey);
+            OtherInventory = Inventory.FetchInventory(other.ConvertToUInt64(), apiKey);
 
-            if (OtherInventory == null)
-            {
-                throw new InventoryFetchException (other);
-            }
-            
+            //if (OtherInventory == null)
+            //{
+            //    throw new InventoryFetchException (other);
+            //}
+
             // fetch our inventory from the Steam API.
-            MyInventory = Inventory.FetchInventory (me.ConvertToUInt64 (), apiKey);
+            MyInventory = Inventory.FetchInventory(me.ConvertToUInt64(), apiKey);
 
             if (MyInventory == null)
             {
-                throw new InventoryFetchException (me);
+                throw new InventoryFetchException(me);
             }
-            
+
             // check that the schema was already successfully fetched
             if (Trade.CurrentSchema == null)
-                Trade.CurrentSchema = Schema.FetchSchema (apiKey);
+                Trade.CurrentSchema = Schema.FetchSchema(apiKey);
 
             if (Trade.CurrentSchema == null)
-                throw new TradeException ("Could not download the latest item schema.");
+                throw new TradeException("Could not download the latest item schema.");
         }
 
         #endregion Public Methods
 
-        private void StartTradeThread ()
+        private void StartTradeThread()
         {
             // initialize data to use in thread
             tradeStartTime = DateTime.Now;
             lastOtherActionTime = DateTime.Now;
 
-            var pollThread = new Thread (() =>
+            var pollThread = new Thread(() =>
             {
                 IsTradeThreadRunning = true;
 
-                DebugPrint ("Trade thread starting.");
-                
+                DebugPrint("Trade thread starting.");
+
                 // main thread loop for polling
                 while (IsTradeThreadRunning)
                 {
-                    Thread.Sleep (TradePollingInterval);
-                    
+                    Thread.Sleep(TradePollingInterval);
+
                     try
                     {
-                        bool action = trade.Poll ();
+                        bool action = trade.Poll();
 
                         if (action)
                             lastOtherActionTime = DateTime.Now;
-                        
+
                         if (trade.OtherUserCancelled || trade.HasTradeCompletedOk)
                         {
                             IsTradeThreadRunning = false;
@@ -281,70 +281,69 @@ namespace SteamTrade
                             trade.FireOnCloseEvent();
                         }
 
-                        CheckTradeTimeout (trade);
+                        CheckTradeTimeout(trade);
                     }
                     catch (Exception ex)
                     {
                         // TODO: find a new way to do this w/o the trade events
                         //if (OnError != null)
                         //    OnError("Error Polling Trade: " + e);
-                        
+
                         // ok then we should stop polling...
                         IsTradeThreadRunning = false;
-                        DebugPrint ("[TRADEMANAGER] general error caught: " + ex);
+                        DebugPrint("[TRADEMANAGER] general error caught: " + ex);
                     }
                 }
 
-                DebugPrint ("Trade thread shutting down.");
+                DebugPrint("Trade thread shutting down.");
 
                 if (OnTradeEnded != null)
-                    OnTradeEnded (this, null);
+                    OnTradeEnded(this, null);
             });
 
             pollThread.Start();
         }
 
-        void CheckTradeTimeout (Trade trade)
+        void CheckTradeTimeout(Trade trade)
         {
             var now = DateTime.Now;
 
-            DateTime actionTimeout = lastOtherActionTime.AddSeconds (MaxActionGapSec);
-            int untilActionTimeout = (int)Math.Round ((actionTimeout - now).TotalSeconds);
+            DateTime actionTimeout = lastOtherActionTime.AddSeconds(MaxActionGapSec);
+            int untilActionTimeout = (int)Math.Round((actionTimeout - now).TotalSeconds);
 
-            DebugPrint (String.Format ("{0} {1}", actionTimeout, untilActionTimeout));
+            DebugPrint(String.Format("{0} {1}", actionTimeout, untilActionTimeout));
 
-            DateTime tradeTimeout = tradeStartTime.AddSeconds (MaxTradeTimeSec);
-            int untilTradeTimeout = (int)Math.Round ((tradeTimeout - now).TotalSeconds);
+            DateTime tradeTimeout = tradeStartTime.AddSeconds(MaxTradeTimeSec);
+            int untilTradeTimeout = (int)Math.Round((tradeTimeout - now).TotalSeconds);
 
             if (untilActionTimeout <= 0 || untilTradeTimeout <= 0)
             {
                 // stop thread
                 IsTradeThreadRunning = false;
 
-                DebugPrint ("timed out...");
+                DebugPrint("timed out...");
 
                 if (OnTimeout != null)
                 {
-                    OnTimeout (this, null);
+                    OnTimeout(this, null);
                 }
 
-                trade.CancelTrade ();
+                trade.CancelTrade();
             }
             else if (untilActionTimeout <= 20 && untilActionTimeout % 10 == 0)
             {
-                trade.SendMessage ("Are You AFK? The trade will be canceled in " + untilActionTimeout + " seconds if you don't do something.");
+                trade.SendMessage("Are You AFK? The trade will be canceled in " + untilActionTimeout + " seconds if you don't do something.");
             }
         }
 
-        [Conditional ("DEBUG_TRADE_MANAGER")]
-        void DebugPrint (string output)
+        [Conditional("DEBUG_TRADE_MANAGER")]
+        void DebugPrint(string output)
         {
             // I don't really want to add the Logger as a dependecy to TradeManager so I 
             // print using the console directly. To enable this for debugging put this:
             // #define DEBUG_TRADE_MANAGER
             // at the first line of this file.
-            System.Console.WriteLine (output);
+            System.Console.WriteLine(output);
         }
     }
 }
-
