@@ -5,14 +5,14 @@
 "mainLog": "syslog.log",
 "UseSeparateProcesses": "false", // Separate processes are not supported, unlikely in the future as well.
 "AutoStartAllBots": "true", // Depending on how many idles you have, it may be beneficial to trade in sections.
-"AutoCraftWeapons": "true",  // Option to Craft all weapons, will craft each Giving bot first then again when finished trading
+"BotMode": "1",
 "Options":
         {
-            // Can add custom variables to use in the userhandler. Not too necessary, will be used for future variables.
-            // Proper format below
-            "VariableName": "VariableValue",
-            "IsBoolean": true,
-            "Array":[21,39,55,22,89]
+            "AutoCraftWeapons": "true",  // Option to Craft all weapons, will craft each Giving bot first then again when finished trading
+            "ManageCrates": "false",  // Option to manage (trade/delete) Crates. CrateUserHandler required to collect crates.
+            "DeleteCrates": "0", // Select which crates to delete. (0 = none, 1 = standard dropping crates, 2 = "event" crates, 3 = all crates) - rare dropping crates are never deleted.
+			"TransferCrates": "0", // Same as delete except which crates to trade.
+            "SavedCrates": [1,13,23] // Crate series #'s selected to be saved from deletion, will also be collected.
         }
 		,
 "Bots": [
@@ -22,12 +22,12 @@
             "DisplayName":"TestBot",
             "ChatResponse":"Hi there bro",
             "logFile": "TestBot.log",  // Each bot must have a unique log file
-            "BotControlClass": "SteamBot.ReceivingUserHandler",  // Either Main, Receiving, or Giving (best to list bots in that order)
+            "BotControlClass": "SteamBot.ReceivingUserHandler",  // Either Receiving, Giving, Crate, or Main (Order in bot array does not matter)
             "MaximumTradeTime":90,
-            "MaximumActionGap":30,  // Useful when an unhandled error pops up and the bot freezes
+            "MaximumActionGap":30,  // Useful when an unhandled error pops up and the bot freezes (May also cause problems when trading large amounts [100-200+] of items.)
             "DisplayNamePrefix":"",  // Currently only ReceivingUserHandler removes the prefix when finished, it will stick with the others so you may wish to leave it blank
             "TradePollingInterval":800, // Setting lower likely to cause errors. Setting higher may mitigate errors.
-            "LogLevel":"Info",  // Success for GivingUserHandlers can make it more readable.
+            "LogLevel":"Info",  // "Success" for GivingUserHandlers can make it more readable.
             "AutoStart": "true"
         }
     ]
