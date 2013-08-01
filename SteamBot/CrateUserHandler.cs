@@ -11,7 +11,8 @@ namespace SteamBot
     {
         bool OtherInit = false;
         bool MeInit = false;
-        bool MyItemsAdded = false;
+        bool MeAdded = false;
+        bool OtherAdded = false;
 
         public CrateUserHandler(Bot bot, SteamID sid, Configuration config) : base(bot, sid, config) 
         {
@@ -40,14 +41,22 @@ namespace SteamBot
             Log.Info("Getting Inventory");
             Bot.GetInventory();
 
-            itemsToTrade = GetAllNonCrates(Bot.MyInventory);
+            if (ManageCrates)
+            {
+                Bot.SetGamePlaying(440);
+                DeleteSelectedCrates(DeleteCrates);
+                Bot.SetGamePlaying(0);
+            }
+
+            itemsToTrade = GetTradeItems(Bot.MyInventory, 0);
+
             if (!BotItemMap.ContainsKey(mySteamID))
             {
                 BotItemMap.Add(mySteamID, itemsToTrade);
                 Admins.Add(mySteamID);
             }
 
-            Log.Info("[Giving] " + Bot.DisplayName + " checking in. " + BotItemMap.Count + " of " + NumberOfBots + " Bots.");
+            Log.Info("[Crate] " + Bot.DisplayName + " checking in. " + BotItemMap.Count + " of " + NumberOfBots + " Bots.");
             CrateUHIsRunning = true;
 
             if (BotItemMap[mySteamID].Count > 0)
@@ -91,7 +100,8 @@ namespace SteamBot
         {
             MeInit = false;
             OtherInit = false;
-            MyItemsAdded = false;
+            MeAdded = false;
+            OtherAdded = false;
 
             if (ReceivingSID == OtherSID)
             {
@@ -108,6 +118,12 @@ namespace SteamBot
         public override void OnTradeTimeout()
         {
             Log.Info("User was kicked because he was AFK.");
+        }
+
+        public override void OnTradeClose()
+        {
+            Log.Warn("[Crate] TRADE CLOSED");
+            Bot.CloseTrade();
         }
 
         public override void OnTradeInit()
@@ -135,10 +151,14 @@ namespace SteamBot
 
             if (message == "ready")
             {
-                if (!SendMessage("ready"))
+                OtherAdded = true;
+                if (MeAdded)
                 {
-                    CancelTrade();
-                    OnTradeClose();
+                    if (!SetReady(true))
+                    {
+                        CancelTrade();
+                        OnTradeClose();
+                    }
                 }
             }
         }
@@ -147,7 +167,7 @@ namespace SteamBot
         {
             if (OtherSID == ReceivingSID)
             {
-                SetReady(true);
+                SetReady(ready);
             }
         }
 
@@ -179,22 +199,35 @@ namespace SteamBot
 
             uint added = AddItemsFromList(BotItemMap[mySteamID]);
 
-            if (added > 0)
+            if (added > 0 || BotItemMap[mySteamID].Count == 0)
             {
                 Log.Success("Added " + added + " items.");
                 System.Threading.Thread.Sleep(50);
-                MyItemsAdded = true;
-                if (!SendMessage("ready"))
+
+                SendMessage("ready");
+                MeAdded = true;
+
+                if (OtherAdded)
                 {
-                    CancelTrade();
-                    OnTradeClose();
+                    SetReady(true);
                 }
             }
             else
             {
                 Log.Debug("Something's gone wrong.");
                 Bot.GetInventory();
-                if (GetAllNonCrates(Bot.MyInventory).Count > 0)
+                int ItemsLeft = 0;
+
+                if (ManageCrates)
+                {
+                    ItemsLeft = GetTradeItems(Bot.MyInventory, TransferCrates).Count;
+                }
+                else
+                {
+                    ItemsLeft = GetTradeItems(Bot.MyInventory, 0).Count;
+                }
+
+                if (ItemsLeft > 0)
                 {
                     Log.Debug("Still have items to trade, aborting trade.");
                     //errorOcccured = true;

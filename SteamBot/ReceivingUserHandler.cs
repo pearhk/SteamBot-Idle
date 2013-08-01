@@ -13,7 +13,7 @@ namespace SteamBot
         bool OtherInit = false;
         bool MeInit = false;
 
-        public ReceivingUserHandler(Bot bot, SteamID sid, Configuration config) : base(bot, sid, config) 
+        public ReceivingUserHandler(Bot bot, SteamID sid, Configuration config) : base(bot, sid, config)
         {
             Success = false;
             mySteamID = Bot.SteamUser.SteamID;
@@ -68,7 +68,7 @@ namespace SteamBot
         }
 
         public override void OnFriendRemove() { }
-        
+
         public override void OnMessage(string message, EChatEntryType type)
         {
             System.Threading.Thread.Sleep(100);
@@ -133,9 +133,20 @@ namespace SteamBot
             //Bot.SteamFriends.SendChatMessage(OtherSID, EChatEntryType.ChatMsg,
             //                                  "Trade timeout.");
             Log.Warn("Trade timeout.");
-            Log.Debug("Something's gone wrong.");
             Bot.GetOtherInventory(OtherSID);
-            if (GetAllNonCrates(Bot.OtherInventory).Count > 0)
+
+            int ItemsLeft = 0;
+
+            if (ManageCrates)
+            {
+                ItemsLeft = GetTradeItems(Bot.OtherInventory, TransferCrates).Count;
+            }
+            else
+            {
+                ItemsLeft = GetTradeItems(Bot.OtherInventory, 0).Count;
+            }
+
+            if (ItemsLeft > 0)
             {
                 Log.Debug("Still has items to trade");
                 //errorOcccured = true;
@@ -144,8 +155,8 @@ namespace SteamBot
             {
                 Log.Debug("No items in inventory, removing");
                 if (TradeReadyBots.Contains(OtherSID))
-                { 
-                    TradeReadyBots.Remove(OtherSID); 
+                {
+                    TradeReadyBots.Remove(OtherSID);
                 }
             }
             if (OtherSID != MainSID && OtherSID != CrateSID)
@@ -200,11 +211,10 @@ namespace SteamBot
         public override void OnTradeInit()
         {
             Log.Success("Trade Started");
-            if (OtherSID != MainSID && OtherSID != CrateSID)
-            {
-                Bot.SteamFriends.SendChatMessage(OtherSID, EChatEntryType.ChatMsg, "initialized");
-            }
-            else
+
+            Bot.SteamFriends.SendChatMessage(OtherSID, EChatEntryType.ChatMsg, "initialized");
+
+            if (OtherSID == MainSID || OtherSID == CrateSID)
             {
                 MeInit = true;
 
@@ -215,14 +225,14 @@ namespace SteamBot
             }
         }
 
-        public override void OnTradeAddItem(Schema.Item schemaItem, Inventory.Item inventoryItem) 
-        { 
+        public override void OnTradeAddItem(Schema.Item schemaItem, Inventory.Item inventoryItem)
+        {
             Log.Debug("Item has been added. ID: " + inventoryItem.Id);
         }
 
         public override void OnTradeRemoveItem(Schema.Item schemaItem, Inventory.Item inventoryItem) { }
 
-        public override void OnTradeMessage(string message) 
+        public override void OnTradeMessage(string message)
         {
             if (OtherSID == MainSID || OtherSID == CrateSID)
             {
@@ -252,7 +262,7 @@ namespace SteamBot
             }
         }
 
-        public override void OnTradeReady(bool ready) 
+        public override void OnTradeReady(bool ready)
         {
             Log.Debug("OnTradeReady");
             Thread.Sleep(100);
@@ -289,7 +299,19 @@ namespace SteamBot
                 {
                     Log.Warn("Trade might have failed.");
                     Bot.GetInventory();
-                    if (GetAllNonCrates(Bot.MyInventory).Count == 0)
+
+                    int ItemsLeft = 0;
+
+                    if (ManageCrates)
+                    {
+                        ItemsLeft = GetTradeItems(Bot.OtherInventory, TransferCrates).Count;
+                    }
+                    else
+                    {
+                        ItemsLeft = GetTradeItems(Bot.OtherInventory, 0).Count;
+                    }
+
+                    if (ItemsLeft > 0)
                     {
                         Log.Warn("Bot has no items, trade may have succeeded. Removing bot.");
                         TradeReadyBots.Remove(mySteamID);
@@ -474,8 +496,18 @@ namespace SteamBot
             Log.Info("Getting Inventory");
             Bot.GetInventory();
 
-            Log.Debug("Adding all non crates");
-            List<Inventory.Item> AllItems = GetAllNonCrates(Bot.MyInventory);
+            List<Inventory.Item> AllItems;
+
+            if (ManageCrates)
+            {
+                AllItems = GetTradeItems(Bot.MyInventory, TransferCrates);
+            }
+            else
+            {
+                AllItems = GetTradeItems(Bot.MyInventory, 0);
+            }
+
+            Log.Debug("Adding items");
             uint added = AddItemsFromList(AllItems);
 
             if (added > 0)
@@ -492,7 +524,18 @@ namespace SteamBot
             {
                 Log.Debug("Something's gone wrong.");
                 Bot.GetInventory();
-                if (GetAllNonCrates(Bot.MyInventory).Count > 0)
+                int ItemsLeft = 0;
+
+                if (ManageCrates)
+                {
+                    ItemsLeft = GetTradeItems(Bot.MyInventory, TransferCrates).Count;
+                }
+                else
+                {
+                    ItemsLeft = GetTradeItems(Bot.MyInventory, 0).Count;
+                }
+
+                if (ItemsLeft > 0)
                 {
                     Log.Debug("Still have items to trade, aborting trade.");
                     //errorOcccured = true;

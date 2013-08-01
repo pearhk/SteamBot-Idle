@@ -58,14 +58,17 @@ namespace SteamBot
             Log.Info("User was kicked because he was AFK.");
         }
 
+        public override void OnTradeClose()
+        {
+            Log.Warn("[Main] TRADE CLOSED");
+            Bot.CloseTrade();
+        }
+
         public override void OnTradeInit()
         {
             Log.Success("Trade Started");
 
-            if (OtherSID != MainSID && OtherSID != CrateSID)
-            {
-                Bot.SteamFriends.SendChatMessage(OtherSID, EChatEntryType.ChatMsg, "initialized");
-            }
+            Bot.SteamFriends.SendChatMessage(OtherSID, EChatEntryType.ChatMsg, "initialized");
         }
 
         public override void OnTradeAddItem(Schema.Item schemaItem, Inventory.Item inventoryItem) { }

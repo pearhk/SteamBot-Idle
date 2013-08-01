@@ -68,15 +68,10 @@ namespace SteamBot
 
             if (config.AutoStartAllBots)
             {
-                if (config.CrateIndex > -1)
-                {
-                    config.HasCrateUHLoaded = true;
-                }
-                if (config.MainIndex > -1)
-                {
-                    config.HasMainUHLoaded = true;
-                }
+                config.HasCrateUHLoaded = (config.CrateIndex > -1);
 
+                config.HasMainUHLoaded = (config.MainIndex > -1);
+                
                 bots = config.Bots.Length;
             }
 
@@ -250,7 +245,7 @@ namespace SteamBot
             public bool AutoCraftWeapons { get; set; }
 
             /// <summary>
-            /// Gets or sets a value indicating whether to manage standard Crates found in inventories. (salvaged will be handled like items)
+            /// Gets or sets a value indicating whether to manage any Crates found in inventories. (salvaged will be handled like items)
             /// Defaults to false. CrateUserHandler required for use.
             /// </summary>
             /// <value>
@@ -262,8 +257,13 @@ namespace SteamBot
             public bool ManageCrates { get; set; }
 
             /// <summary>
-            /// Gets or sets a value indicating whether to delete standard Crates found in inventories.
-            /// Defaults to false.
+            /// Gets or sets a value indicating how to handle Crate deletion. (Crates in SavedCrates will always
+            /// be excluded.)
+            /// 0 indicates no crates will be deleted.
+            /// 1 indicates only standard mann co. crates will be deleted
+            /// 2 indicates only event crates will be deleted (e.g. eerie/summer/winter crates)
+            /// 3 indicates all crates will be deleted.
+            /// Defaults to 0.
             /// </summary>
             /// <value>
             /// <c>true</c> to delete normal Crates, CrateUserHandler not required.
@@ -271,7 +271,23 @@ namespace SteamBot
             /// </value>
             [JsonProperty(Required = Required.Default, DefaultValueHandling = DefaultValueHandling.Populate)]
             [DefaultValue(false)]
-            public bool DeleteCrates { get; set; }
+            public int DeleteCrates { get; set; }
+
+            /// <summary>
+            /// Gets or sets a value indicating how to transfer Crates.
+            /// 0 indicates no crates will be moved from idles.
+            /// 1 indicates only standard mann co. crates will be moved from idles.
+            /// 2 indicates only event crates will be moved from idles. (e.g. eerie/summer/winter crates)
+            /// 3 indicates all crates will be moved from idles.
+            /// Defaults to 0.
+            /// </summary>
+            /// <value>
+            /// <c>true</c> to delete normal Crates, CrateUserHandler not required.
+            /// <c>false</c> to save Crates.
+            /// </value>
+            [JsonProperty(Required = Required.Default, DefaultValueHandling = DefaultValueHandling.Populate)]
+            [DefaultValue(false)]
+            public int TransferCrates { get; set; }
 
             /// <summary>
             /// Gets or sets an array specifying series numbers of crates to save.

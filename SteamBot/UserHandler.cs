@@ -17,16 +17,13 @@ namespace SteamBot
         protected enum Actions { DoNothing, NormalHarvest, CrateManager }
 
         protected Bot Bot;
-        protected SteamID OtherSID;
-        protected SteamID mySteamID;
+        protected SteamID OtherSID, mySteamID;
         protected bool Success;
 
-        
         // Used for Bot trade
         protected static List<SteamID> TradeReadyBots = new List<SteamID>();
         protected static Dictionary<SteamID, List<Inventory.Item>> BotItemMap = new Dictionary<SteamID, List<Inventory.Item>>();
         protected static List<SteamID> Admins = new List<SteamID>();
-
 
         // OnTradeAccept() isn't very reliable. May use this.
         // public static bool traded = false;
@@ -43,21 +40,27 @@ namespace SteamBot
 
         // Important Startup mode value, defaulting to "do nothing"
         protected static int BotMode = 0;
-        
-        // Recreating specific settings in the config here for readability in the UserHandlers 
+
+        // Recreating specific settings in the config here for readability in the UserHandlers
+        #region Configuration Settings
         protected static int NumberOfBots = -1;
-        protected static bool AutoCraftWeps;
 
-        protected static bool ManageCrates;
-        protected static bool DeleteCrates;
+        protected static bool AutoCraftWeps, ManageCrates, CrateUHIsRunning, MainUHIsRunning;
+        protected static int DeleteCrates, TransferCrates;
+
         protected static int[] ExcludedCrates;
+        #endregion
 
-        protected static bool CrateUHIsRunning;
-        protected static bool MainUHIsRunning;
+        #region Crate Defindexes
+        protected static readonly int[] StandardCrates = new int[3] { 5022, 5041, 5045 };
+
+        // Salvaged and the new crates changed to rare drops (robo and summer 2013)
+        protected static readonly int[] RareDropCrates = new int[3] { 5068, 5635, 5639 };
+        #endregion
 
         public UserHandler(Bot bot, SteamID sid, Configuration config)
         {
-            
+
             Bot = bot;
             OtherSID = sid;
             if (Settings == null)
@@ -68,6 +71,7 @@ namespace SteamBot
                 AutoCraftWeps = config.Options.AutoCraftWeapons;
                 ManageCrates = config.Options.ManageCrates;
                 DeleteCrates = config.Options.DeleteCrates;
+                TransferCrates = config.Options.TransferCrates;
                 ExcludedCrates = config.Options.SavedCrates;
 
                 CrateUHIsRunning = config.HasCrateUHLoaded;
@@ -486,20 +490,67 @@ namespace SteamBot
         #region Trading
 
         /// <summary>
-        /// Gets all tradeable items other than normal crates.
+        /// Gets a list of items to trade. In addition to the specific handling of crates, all normal items and any saved crates will also be traded.
         /// </summary>
+        /// <param name="option">
+        /// How to handle crates
+        /// 0 indicates no crates will be traded.
+        /// 1 indicates only standard mann co. crates will be traded.
+        /// 2 indicates only event crates will be traded. (e.g. eerie/summer/winter crates)
+        /// 3 indicates all crates will be traded.
+        /// </param>
         /// <returns>List of items to add.</returns>
-        protected List<Inventory.Item> GetAllNonCrates(Inventory inv)
+        protected List<Inventory.Item> GetTradeItems(Inventory inv, int option)
         {
-            var items = new List<Inventory.Item>();
-            foreach (Inventory.Item item in inv.Items)
+            var ToTrade = new List<Inventory.Item>();
+
+            switch (option)
             {
-                if (item.Defindex != 5022 && item.Defindex != 5041 && item.Defindex != 5045 && item != null && !item.IsNotTradeable)
-                {
-                    items.Add(item);
-                }
+                case 0:
+                    foreach (Inventory.Item item in inv.Items)
+                    {
+                        // if it's not a crate or if it's an excluded or rare-drop crate
+                        if (item != null && (!item.IsCrate || ExcludedCrates.Contains<int>(item.Defindex) || RareDropCrates.Contains<int>(item.Defindex)) && !item.IsNotTradeable)
+                        {
+                            ToTrade.Add(item);
+                        }
+                    }
+                    break;
+
+                case 1:
+                    foreach (Inventory.Item item in inv.Items)
+                    {
+                        // if it's not a crate or if it's a standard, excluded, or rare-drop crate
+                        if (item != null && (!item.IsCrate || StandardCrates.Contains<int>(item.Defindex) || ExcludedCrates.Contains<int>(item.Defindex) || RareDropCrates.Contains<int>(item.Defindex)) && !item.IsNotTradeable)
+                        {
+                            ToTrade.Add(item);
+                        }
+                    }
+                    break;
+
+                case 2:
+                    foreach (Inventory.Item item in inv.Items)
+                    {
+                        // if it's not a standard crate
+                        if (item != null && !StandardCrates.Contains<int>(item.Defindex) && !item.IsNotTradeable)
+                        {
+                            ToTrade.Add(item);
+                        }
+                    }
+                    break;
+
+                case 3:
+                    foreach (Inventory.Item item in inv.Items)
+                    {
+                        if (item != null && !item.IsNotTradeable)
+                        {
+                            ToTrade.Add(item);
+                        }
+                    }
+                    break;
             }
-            return items;
+
+            return ToTrade;
         }
 
         /// <summary>
@@ -535,13 +586,22 @@ namespace SteamBot
         // A little rough around the edges.
 
         /// <summary>
-        /// Crafts Items
+        /// Crafts an array of items.
         /// </summary>
-        protected void Craft(ulong[] craftItems)
+        protected void Craft(Inventory.Item[] CraftItems)
         {
-            Log.Info("Crafting " + craftItems.Length + " items.");
-            Log.Debug("Item IDs: " + craftItems[0] + " and " + craftItems[1]);
-            TF2GC.Crafting.CraftItems(Bot, craftItems);
+            ulong[] CraftIds = new ulong[CraftItems.Length];
+            Log.Info("Crafting " + CraftItems.Length + " items.");
+
+            int index = 0;
+            foreach (Inventory.Item item in CraftItems)
+            {
+                CraftIds[index] = item.Id;
+                Log.Debug("Crafting Item ID: " + item.Id);
+                index++;
+            }
+
+            TF2GC.Crafting.CraftItems(Bot, CraftIds);
 
             // Give time for callbacks to update, otherwise backpack may not be up-to-date
             // after a large amount of crafting. Sleep may be moved elsewhere to allow for
@@ -559,14 +619,14 @@ namespace SteamBot
             Log.Info("AutoCrafting Weapons");
 
             // Will hold all craftable/tradable weapons
-            List<Inventory.Item> myCleanWeapons = new List<Inventory.Item>();
+            List<Inventory.Item> MyCleanWeapons = new List<Inventory.Item>();
 
             Log.Debug("Getting Inventory");
             Bot.GetInventory();
 
-            myCleanWeapons = GetCleanItemsOfMaterial("weapon");
-            Log.Info("Number of weapons to craft: " + myCleanWeapons.Count);
-            if (myCleanWeapons.Count < 2)
+            MyCleanWeapons = GetCleanItemsOfMaterial("weapon");
+            Log.Info("Number of weapons to craft: " + MyCleanWeapons.Count);
+            if (MyCleanWeapons.Count < 2)
             {
                 Log.Info("There are not enough weapons to craft");
                 return false;
@@ -575,7 +635,7 @@ namespace SteamBot
             Log.Info("Setting Game State to Playing TF2.");
             Bot.SetGamePlaying(440);
 
-            int ScrapMade = ScrapWeapons(myCleanWeapons);
+            int ScrapMade = ScrapWeapons(MyCleanWeapons);
             Log.Info("Scrap made: " + ScrapMade);
 
             Log.Info("Combining Metal");
@@ -607,7 +667,7 @@ namespace SteamBot
             // Seperate the multi-class weapons again because it's so special
             allWeapons.RemoveAt(9);
 
-            ulong[] craftIds;
+            Inventory.Item[] CraftItems;
             int scrapMade = 0;
             Log.Info("Beginning smelt sequence.");
 
@@ -616,12 +676,12 @@ namespace SteamBot
             {
                 while (list.Count > 1)
                 {
-                    craftIds = new ulong[2];
-                    craftIds[0] = list[0].Id;
+                    CraftItems = new Inventory.Item[2];
+                    CraftItems[0] = list[0];
                     list.RemoveAt(0);
-                    craftIds[1] = list[0].Id;
+                    CraftItems[1] = list[0];
                     list.RemoveAt(0);
-                    Craft(craftIds);
+                    Craft(CraftItems);
                     scrapMade++;
                 }
             }
@@ -630,7 +690,7 @@ namespace SteamBot
             Log.Info("Scrapping multi-class weps");
             foreach (List<Inventory.Item> list in allWeapons)
             {
-                craftIds = new ulong[2];
+                CraftItems = new Inventory.Item[2];
                 if (list.Count > 0)
                 {
                     foreach (Inventory.Item item in multiWeps)
@@ -639,12 +699,12 @@ namespace SteamBot
                         string[] itemClass = Trade.CurrentSchema.GetItem(list[0].Defindex).UsableByClasses;
                         if (classes.Contains(itemClass[0]))
                         {
-                            craftIds[0] = item.Id;
-                            // I can remove item from this foreach because I'm going to break anyway
+                            CraftItems[0] = item;
+                            // I can remove items from this foreach because I'm going to break anyway
                             multiWeps.Remove(item);
-                            craftIds[1] = list[0].Id;
+                            CraftItems[1] = list[0];
                             list.RemoveAt(0);
-                            Craft(craftIds);
+                            Craft(CraftItems);
                             scrapMade++;
                             break;
                         }
@@ -654,12 +714,12 @@ namespace SteamBot
             // Clean up any leftover
             while (multiWeps.Count > 1)
             {
-                craftIds = new ulong[2];
-                craftIds[0] = multiWeps[0].Id;
+                CraftItems = new Inventory.Item[2];
+                CraftItems[0] = multiWeps[0];
                 multiWeps.RemoveAt(0);
-                craftIds[1] = multiWeps[0].Id;
+                CraftItems[1] = multiWeps[0];
                 multiWeps.RemoveAt(0);
-                Craft(craftIds);
+                Craft(CraftItems);
                 scrapMade++;
             }
             return scrapMade;
@@ -682,34 +742,52 @@ namespace SteamBot
             Log.Info("Combining all metal");
 
             // Scrap, Reclaimed, and Refined are defindex 5000, 5001, 5002 respectively
-            // Lame loop to save a few lines of code
-            for (int defindex = 5000; defindex < 5002; defindex++)
+
+            List<Inventory.Item> ScrapToCraft = new List<Inventory.Item>();
+
+            Log.Debug("Getting Inventory");
+            Thread.Sleep(300); // Just another pause to be sure inventory has updated.
+            Bot.GetInventory();
+
+            ScrapToCraft = Bot.MyInventory.GetItemsByDefindex(5000);
+
+            Log.Debug("Total Scrap: " + ScrapToCraft.Count);
+            Log.Debug("Crafting " + (ScrapToCraft.Count / 3) + " Reclaimed.");
+
+            while (ScrapToCraft.Count > 2)
             {
-                List<Inventory.Item> metalToCraft = new List<Inventory.Item>();
-                Log.Debug("Getting Inventory");
-                Thread.Sleep(300); // Just another pause to be sure inventory has updated.
-                Bot.GetInventory();
-
-                foreach (Inventory.Item invItem in Bot.MyInventory.Items)
+                Inventory.Item[] CraftItems = new Inventory.Item[3];
+                CraftItems[0] = ScrapToCraft[0];
+                CraftItems[1] = ScrapToCraft[1];
+                CraftItems[2] = ScrapToCraft[2];
+                Craft(CraftItems);
+                for (int x = 0; x < 3; x++)
                 {
-                    if (invItem.Defindex == defindex)
-                    {
-                        metalToCraft.Add(invItem);
-                    }
+                    ScrapToCraft.RemoveAt(0);
                 }
-                Log.Debug("Combining Metal. Defindex: " + defindex);
+            }
 
-                while (metalToCraft.Count > 2)
+            List<Inventory.Item> ReclaimedToCraft = new List<Inventory.Item>();
+
+            Log.Debug("Getting Inventory");
+            Thread.Sleep(300); // Just another pause to be sure inventory has updated.
+            Bot.GetInventory();
+
+            ReclaimedToCraft = Bot.MyInventory.GetItemsByDefindex(5001);
+
+            Log.Debug("Total Reclaimed: " + ReclaimedToCraft.Count);
+            Log.Debug("Crafting " + (ReclaimedToCraft.Count / 3) + " Refined.");
+
+            while (ReclaimedToCraft.Count > 2)
+            {
+                Inventory.Item[] craftIds = new Inventory.Item[3];
+                craftIds[0] = ReclaimedToCraft[0];
+                craftIds[1] = ReclaimedToCraft[1];
+                craftIds[2] = ReclaimedToCraft[2];
+                Craft(craftIds);
+                for (int x = 0; x < 3; x++)
                 {
-                    ulong[] craftIds = new ulong[3];
-                    craftIds[0] = metalToCraft[0].Id;
-                    craftIds[1] = metalToCraft[1].Id;
-                    craftIds[2] = metalToCraft[2].Id;
-                    Craft(craftIds);
-                    for (int x = 0; x < 3; x++)
-                    {
-                        metalToCraft.RemoveAt(0);
-                    }
+                    ReclaimedToCraft.RemoveAt(0);
                 }
             }
         }
@@ -816,6 +894,95 @@ namespace SteamBot
             return allWeps;
         }
 
+        #endregion
+
+        #region Item Management
+
+        /// <summary>
+        /// Deletes an item
+        /// </summary>
+        protected void DeleteItem(Inventory.Item item)
+        {
+            Log.Info("Deleting item: " + item.Id);
+            TF2GC.Items.DeleteItem(Bot, item.Id);
+
+            // Again, some delay seems required for repetive commands - unsure how much.
+            Thread.Sleep(100);
+        }
+
+        /// <summary>
+        /// Deletes certain Crates based on the int parameter.
+        /// </summary>
+        /// <param name="option">
+        /// Rare-dropping crates and crates in SavedCrates are excluded.
+        /// 0 indicates no crates will be deleted.
+        /// 1 indicates only standard mann co. crates will be deleted.
+        /// 2 indicates only event crates will be deleted. (e.g. eerie/summer/winter crates)
+        /// 3 indicates all crates will be deleted.
+        /// </param>
+        /// <returns>the number of crates deleted.</returns>
+        protected int DeleteSelectedCrates(int option)
+        {
+            if (Bot.CurrentGame != 440)
+            {
+                Log.Error("Must have current game set to TF2 to delete items.");
+                return 0;
+            }
+
+            var ToDelete = new List<Inventory.Item>();
+
+            switch (option)
+            {
+                case 0:
+                    Log.Info("No Crates are selected to be deleted");
+                    return 0;
+
+                case 1:
+                    foreach (Inventory.Item item in Bot.MyInventory.Items)
+                    {
+                        // if it is a standard crate and not excluded
+                        if ((item != null) && StandardCrates.Contains<int>(item.Defindex) && !ExcludedCrates.Contains<int>(item.CrateSeriesNumber))
+                        {
+                            ToDelete.Add(item);
+                        }
+                    }
+                    break;
+
+                case 2:
+                    foreach (Inventory.Item item in Bot.MyInventory.Items)
+                    {
+                        // if it is a crate, not a standard drop, not a rare drop, and not excluded
+                        if ((item != null) && (item.IsCrate) && !StandardCrates.Contains<int>(item.Defindex) && !RareDropCrates.Contains<int>(item.Defindex) && !ExcludedCrates.Contains<int>(item.CrateSeriesNumber))
+                        {
+                            ToDelete.Add(item);
+                        }
+                    }
+                    break;
+
+                case 3:
+                    foreach (Inventory.Item item in Bot.MyInventory.Items)
+                    {
+                        // if it is a crate, is not a rare drop, and is not excluded
+                        if ((item != null) && (item.IsCrate) && !RareDropCrates.Contains<int>(item.Defindex) && !ExcludedCrates.Contains<int>(item.CrateSeriesNumber))
+                        {
+                            ToDelete.Add(item);
+                        }
+                    }
+                    break;
+            }
+
+            // More items to delete can be added here (e.g. mann co. cap, seal mask, etc.)
+            Log.Info("Deleting " + ToDelete.Count + " crates.");
+
+            foreach (Inventory.Item item in ToDelete)
+            {
+                DeleteItem(item);
+            }
+
+            // May add some verification that all items were deleted.
+
+            return ToDelete.Count;
+        }
         #endregion
     }
 }

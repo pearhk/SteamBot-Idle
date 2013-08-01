@@ -53,6 +53,23 @@ namespace SteamTrade
         {
             NumSlots = apiInventory.num_backpack_slots;
             Items = apiInventory.items;
+
+            foreach (Inventory.Item item in Items)
+            {
+                if (item.Attributes != null)
+                {
+                    foreach (ItemAttribute attr in item.Attributes)
+                    {
+                        if (attr.Defindex == 187)
+                        {
+                            item.IsCrate = true;
+                            item.CrateSeriesNumber = Convert.ToInt32(attr.FloatValue);
+                            break;
+                        }
+                    }
+                }
+            }
+
             IsPrivate = (apiInventory.status == "15");
             IsGood = (apiInventory.status == "1");
         }
@@ -131,6 +148,16 @@ namespace SteamTrade
 
             [JsonProperty("contained_item")]
             public Item ContainedItem { get; set; }
+
+            public bool IsCrate { get; set; }
+
+            public int CrateSeriesNumber { get; set; }
+
+            public Item()
+            {
+                IsCrate = false;
+                CrateSeriesNumber = -1;
+            }
         }
 
         public class ItemAttribute
