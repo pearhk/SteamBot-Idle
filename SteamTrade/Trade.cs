@@ -456,7 +456,7 @@ namespace SteamTrade
                 default:
                     if (OnError != null)
                     {
-                        OnError("Trade was closed by customer. Trade status: " + status.trade_status);
+                        OnError("Trade was closed by the other user. Trade status: " + status.trade_status);
                     }
                     OtherUserCancelled = true;
                     return otherDidSomething;

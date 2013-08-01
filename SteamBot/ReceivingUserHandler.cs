@@ -12,6 +12,8 @@ namespace SteamBot
         int totalAdded = 0;
         bool OtherInit = false;
         bool MeInit = false;
+        bool OtherAdded = false;
+        bool MeAdded = false;
 
         public ReceivingUserHandler(Bot bot, SteamID sid, Configuration config) : base(bot, sid, config)
         {
@@ -92,6 +94,11 @@ namespace SteamBot
 
         public override bool OnTradeRequest()
         {
+            MeInit = false;
+            OtherInit = false;
+            MeAdded = false;
+            OtherAdded = false;
+
             if (IsAdmin)
             {
                 return true;
@@ -240,10 +247,18 @@ namespace SteamBot
                 Log.Debug("Message Received: " + message);
                 if (message == "ready")
                 {
-                    if (!SetReady(true))
+                    OtherAdded = true;
+                    if (Trade.OtherIsReady && Trade.MeIsReady)
                     {
-                        CancelTrade();
-                        OnTradeClose();
+                        TradeAccept();
+                    }
+                    else if (MeAdded)
+                    {
+                        if (!SetReady(true))
+                        {
+                            CancelTrade();
+                            OnTradeClose();
+                        }
                     }
                 }
             }
@@ -269,7 +284,15 @@ namespace SteamBot
 
             if (OtherSID == MainSID || OtherSID == CrateSID)
             {
-                TradeAccept();
+                if (Trade.MeIsReady && Trade.OtherIsReady)
+                {
+                    TradeAccept();
+                }
+                else if (MeAdded)
+                {
+                    SetReady(true);
+                    SendMessage("ready");
+                }
             }
             else if (IsAdmin)
             {
@@ -411,6 +434,7 @@ namespace SteamBot
             else
             {
                 Log.Error("No Bots available for trade.");
+                FinishTrades();
             }
         }
 
@@ -466,6 +490,8 @@ namespace SteamBot
 
             if (ManageCrates)
             {
+                DeleteSelectedCrates(DeleteCrates);
+
                 if (CrateUHIsRunning)
                 {
                     Log.Info("Sending Crates to CUH");
@@ -487,33 +513,44 @@ namespace SteamBot
                 Log.Info("Main account not found. All normal tasks complete.");
             }
 
-            Log.Success("End of the line. All actions complete.");
+            Log.Success("Harvest thread ending. Last actions should be completed soon.");
         }
 
         public void AddItems()
         {
-            Thread.Sleep(500);
             Log.Info("Getting Inventory");
             Bot.GetInventory();
 
-            List<Inventory.Item> AllItems;
+            var AllItems = new List<Inventory.Item>();
 
-            if (ManageCrates)
+            if (OtherSID == CrateSID)
+            {
+                if (ManageCrates)
+                {
+                    AllItems = GetCrates(Bot.MyInventory, TransferCrates);
+                }
+                else
+                {
+                    return;
+                }
+            }
+            else if (OtherSID == MainSID)
             {
                 AllItems = GetTradeItems(Bot.MyInventory, TransferCrates);
             }
             else
             {
-                AllItems = GetTradeItems(Bot.MyInventory, 0);
+                return;
             }
 
             Log.Debug("Adding items");
             uint added = AddItemsFromList(AllItems);
 
-            if (added > 0)
+            if (added > 0 || AllItems.Count == 0)
             {
                 Log.Info("Added " + added + " items.");
                 System.Threading.Thread.Sleep(50);
+                MeAdded = true;
                 if (!SendMessage("ready"))
                 {
                     CancelTrade();

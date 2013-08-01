@@ -38,13 +38,7 @@ namespace SteamBot
 
             if (ManageCrates)
             {
-                Log.Info("Setting Game State to Playing TF2.");
-                Bot.SetGamePlaying(440);
-
                 DeleteSelectedCrates(DeleteCrates);
-
-                Log.Info("Resetting Game State.");
-                Bot.SetGamePlaying(0);
 
                 itemsToTrade = GetTradeItems(Bot.MyInventory, TransferCrates);
             }

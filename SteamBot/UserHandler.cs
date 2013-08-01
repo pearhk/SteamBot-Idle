@@ -554,6 +554,62 @@ namespace SteamBot
         }
 
         /// <summary>
+        /// Gets a list of crates to trade based on the TransferCrate option.
+        /// </summary>
+        /// <param name="option">
+        /// How to handle crates
+        /// 0 indicates no crates will be traded.
+        /// 1 indicates only standard mann co. crates will be traded.
+        /// 2 indicates only event crates will be traded. (e.g. eerie/summer/winter crates)
+        /// 3 indicates all crates will be traded.
+        /// </param>
+        /// <returns>List of items to add.</returns>
+        protected List<Inventory.Item> GetCrates(Inventory inv, int option)
+        {
+            var ToTrade = new List<Inventory.Item>();
+
+            switch (option)
+            {
+                case 0:
+                    return ToTrade;
+                    
+                case 1:
+                    foreach (Inventory.Item item in inv.Items)
+                    {
+                        // if it's a standard crate
+                        if (item != null && StandardCrates.Contains<int>(item.Defindex) && !item.IsNotTradeable)
+                        {
+                            ToTrade.Add(item);
+                        }
+                    }
+                    break;
+
+                case 2:
+                    foreach (Inventory.Item item in inv.Items)
+                    {
+                        // if it's an event crate
+                        if (item != null && (item.IsCrate && !StandardCrates.Contains<int>(item.Defindex) && !RareDropCrates.Contains<int>(item.Defindex) && !item.IsNotTradeable))
+                        {
+                            ToTrade.Add(item);
+                        }
+                    }
+                    break;
+
+                case 3:
+                    foreach (Inventory.Item item in inv.Items)
+                    {
+                        if (item != null && (item.IsCrate && !RareDropCrates.Contains<int>(item.Defindex) && !item.IsNotTradeable))
+                        {
+                            ToTrade.Add(item);
+                        }
+                    }
+                    break;
+            }
+
+            return ToTrade;
+        }
+
+        /// <summary>
         /// Adds all items from the given list.
         /// </summary>
         /// <returns>Number of items added.</returns>
@@ -923,11 +979,8 @@ namespace SteamBot
         /// <returns>the number of crates deleted.</returns>
         protected int DeleteSelectedCrates(int option)
         {
-            if (Bot.CurrentGame != 440)
-            {
-                Log.Error("Must have current game set to TF2 to delete items.");
-                return 0;
-            }
+            Log.Info("Setting Game State to Playing TF2.");
+            Bot.SetGamePlaying(440);
 
             var ToDelete = new List<Inventory.Item>();
 
@@ -980,6 +1033,9 @@ namespace SteamBot
             }
 
             // May add some verification that all items were deleted.
+
+            Log.Info("Resetting Game State");
+            Bot.SetGamePlaying(0);
 
             return ToDelete.Count;
         }

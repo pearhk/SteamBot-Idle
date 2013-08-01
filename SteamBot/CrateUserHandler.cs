@@ -159,6 +159,7 @@ namespace SteamBot
                         CancelTrade();
                         OnTradeClose();
                     }
+                    SendMessage("ready");
                 }
             }
         }
@@ -167,7 +168,7 @@ namespace SteamBot
         {
             if (OtherSID == ReceivingSID)
             {
-                SetReady(ready);
+                SetReady(true);
             }
         }
 
@@ -191,19 +192,7 @@ namespace SteamBot
         public void AddItems()
         {
             if (BotItemMap[mySteamID].Count < 1)
-                return;
-
-            Thread.Sleep(500);
-
-            Log.Debug("Adding all items.");
-
-            uint added = AddItemsFromList(BotItemMap[mySteamID]);
-
-            if (added > 0 || BotItemMap[mySteamID].Count == 0)
             {
-                Log.Success("Added " + added + " items.");
-                System.Threading.Thread.Sleep(50);
-
                 SendMessage("ready");
                 MeAdded = true;
 
@@ -211,6 +200,23 @@ namespace SteamBot
                 {
                     SetReady(true);
                 }
+
+                return;
+            }
+                           
+            Thread.Sleep(500);
+
+            Log.Debug("Adding all items.");
+
+            uint added = AddItemsFromList(BotItemMap[mySteamID]);
+
+            if (added > 0)
+            {
+                Log.Success("Added " + added + " items.");
+                System.Threading.Thread.Sleep(50);
+
+                SendMessage("ready");
+                MeAdded = true;
             }
             else
             {
