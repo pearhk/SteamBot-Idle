@@ -5,7 +5,7 @@
 "mainLog": "syslog.log",
 "UseSeparateProcesses": "false", // Separate processes are not supported, unlikely in the future as well.
 "AutoStartAllBots": "true", // Depending on how many idles you have, it may be beneficial to trade in sections.
-"BotMode": "1",
+"BotMode": "1", // 0 = ReceivingUserHandler will take no actions, 1 = Normal Harvest Mode (default), 2 = ReceivingUserHandler Crate Management mode (Crates will be deleted/traded)
 "Options":
         {
             "AutoCraftWeapons": "true",  // Option to Craft all weapons, will craft each Giving bot first then again when finished trading

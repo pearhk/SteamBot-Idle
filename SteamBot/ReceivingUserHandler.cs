@@ -45,6 +45,20 @@ namespace SteamBot
 
                 case (int)Actions.CrateManager:
                     Log.Info("Bot Mode CrateManager Loaded. Managing crates...");
+                    if (ManageCrates)
+                    {
+                        DeleteSelectedCrates(DeleteCrates);
+
+                        if (CrateUHIsRunning)
+                        {
+                            Log.Info("Sending Crates to CUH");
+                            BeginNextTrade(CrateSID);
+                        }
+                        else
+                        {
+                            Log.Error("CrateUserHandler not found, cannot handle crates.");
+                        }
+                    }
                     break;
 
                 default:
