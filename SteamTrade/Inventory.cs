@@ -54,17 +54,20 @@ namespace SteamTrade
             NumSlots = apiInventory.num_backpack_slots;
             Items = apiInventory.items;
 
-            foreach (Inventory.Item item in Items)
+            if (Items != null)
             {
-                if (item.Attributes != null)
+                foreach (Inventory.Item item in Items)
                 {
-                    foreach (ItemAttribute attr in item.Attributes)
+                    if (item.Attributes != null)
                     {
-                        if (attr.Defindex == 187)
+                        foreach (ItemAttribute attr in item.Attributes)
                         {
-                            item.IsCrate = true;
-                            item.CrateSeriesNumber = Convert.ToInt32(attr.FloatValue);
-                            break;
+                            if (attr.Defindex == 187)
+                            {
+                                item.IsCrate = true;
+                                item.CrateSeriesNumber = Convert.ToInt32(attr.FloatValue);
+                                break;
+                            }
                         }
                     }
                 }
@@ -81,6 +84,17 @@ namespace SteamTrade
         public bool IsFreeToPlay()
         {
             return this.NumSlots % 100 == 50;
+        }
+
+        public bool ContainsItem(Inventory.Item item)
+        {
+            foreach (Inventory.Item InvItem in Items)
+            {
+                if (item.Id == InvItem.Id)
+                    return true;
+            }
+
+            return false;
         }
 
         public Item GetItem (ulong id)

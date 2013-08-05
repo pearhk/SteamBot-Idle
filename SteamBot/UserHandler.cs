@@ -423,68 +423,6 @@ namespace SteamBot
             }
             return Success;
         }
-
-        ///// <summary>
-        ///// Attempts the specified trade action, retrying 5 times if neccessary.
-        ///// Attempts to cancel the trade if unsuccesful.
-        ///// </summary>
-        ///// <param name="action">The desired in-trade action.</param>
-        ///// <param name="ready">Required only for SetReady</param>
-        ///// <param name="message">Required only for SendMessage</param>
-        ///// <param name="item">Required only for Add/Remove Item</param>
-        ///// <returns>True if successful.</returns>
-        //protected bool TryAction(TradeAction action, Inventory.Item item = null, bool ready = false, string message = null)
-        //{
-        //    Log.Debug("Action: " + action);
-        //    int x = 0;
-        //    Success = false;
-        //    while (Success == false && x < 5)
-        //    {
-        //        x++;
-        //        try
-        //        {
-        //            switch (action)
-        //            {
-        //                case TradeAction.CancelTrade:
-        //                    Success = Trade.CancelTrade(); break;
-        //                case TradeAction.AddItem:
-        //                    Success = Trade.AddItem(item.Id); break;
-        //                case TradeAction.RemoveItem:
-        //                    Success = Trade.RemoveItem(item.Id); break;
-        //                case TradeAction.SetReady:
-        //                    Success = Trade.SetReady(ready); break;
-        //                case TradeAction.AcceptTrade:
-        //                    Success = Trade.AcceptTrade(); break;
-        //                case TradeAction.SendMessage:
-        //                    Success = Trade.SendMessage(message); break;
-        //                default: Log.Error("Invalid trade action: " + action); break;
-        //            }
-        //        }
-        //        catch (TradeException te)
-        //        {
-        //            Log.Warn(action + " failed.");
-        //            Log.Debug(string.Format("Loop #{0}\nException:{1}", x, te));
-        //        }
-        //        catch (Exception e)
-        //        {
-        //            Log.Warn(action + " failed.");
-        //            Log.Debug(string.Format("Loop #{0}\nException:{1}", x, e));
-        //        }
-        //    }
-        //    if (!Success)
-        //    {
-        //        Log.Error("Could not " + action);
-        //        if (action != TradeAction.CancelTrade)
-        //        {
-        //            TryAction(TradeAction.CancelTrade);
-        //        }
-        //        else
-        //        {
-        //            Thread.Sleep(500);
-        //        }
-        //    }
-        //    return Success;
-        //}
         #endregion
 
         #region Trading
@@ -620,7 +558,7 @@ namespace SteamBot
 
             foreach (Inventory.Item item in items)
             {
-                if (item != null && !item.IsNotTradeable)
+                if (item != null && !item.IsNotTradeable && Trade.MyInventory.ContainsItem(item))
                 {
                     if (AddItem(item))
                     {
@@ -629,6 +567,7 @@ namespace SteamBot
                     }
                     else
                     {
+                        // Todo: instead of aborting on an item-add fail, just move on and cancel trade when 0 items are added.
                         Log.Debug("ADDING FAILED, returning to cancel");
                         return 0;
                     }
@@ -636,6 +575,7 @@ namespace SteamBot
             }
             return added;
         }
+
         #endregion
 
         #region Crafting

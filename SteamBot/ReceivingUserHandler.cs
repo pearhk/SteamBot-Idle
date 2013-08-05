@@ -124,6 +124,8 @@ namespace SteamBot
         {
             Log.Warn("OnTradeError: " + error);
 
+            // Todo: add "NotLoggedIn" error
+
             if (error.Equals("InitiatorAlreadyTrading", StringComparison.CurrentCultureIgnoreCase))
             {
                 Log.Info("Steam says a trade or request is still active. Telling target to attempt to close the trade, then waiting 5s to try again.");
@@ -520,6 +522,8 @@ namespace SteamBot
             if (MainUHIsRunning)
             {
                 Log.Info("Now moving items to main.");
+
+                // Todo: check for items here first.
                 BeginNextTrade(MainSID);
             }
             else

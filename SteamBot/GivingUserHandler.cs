@@ -24,21 +24,23 @@ namespace SteamBot
         {
             List<Inventory.Item> itemsToTrade = new List<Inventory.Item>();
 
-            // Optional Crafting
-            if (AutoCraftWeps)
-            {
-                AutoCraftAll();
-                // Inventory must be up-to-date before trade
-                Thread.Sleep(300);
-            }
-
             // Must get inventory here
             Log.Info("Getting Inventory");
             Bot.GetInventory();
 
+            // Optional Crafting
+            if (AutoCraftWeps)
+            {
+                AutoCraftAll();
+            }
+
             if (ManageCrates)
             {
                 DeleteSelectedCrates(DeleteCrates);
+
+                // One more break before updating inventory
+                Thread.Sleep(500);
+                Bot.GetInventory();
 
                 itemsToTrade = GetTradeItems(Bot.MyInventory, TransferCrates);
             }
@@ -131,10 +133,8 @@ namespace SteamBot
 
         public override void OnTradeError(string error)
         {
-            Bot.SteamFriends.SendChatMessage(OtherSID,
-                                              EChatEntryType.ChatMsg,
-                                              "Oh, there was an error: " + error + "."
-                                              );
+            Bot.SteamFriends.SendChatMessage(OtherSID, EChatEntryType.ChatMsg, "failed");
+
             Log.Warn(error);
         }
 
@@ -233,6 +233,8 @@ namespace SteamBot
         public void AddItems()
         {
             Thread.Sleep(500);
+
+            Bot.GetInventory();
 
             Log.Debug("Adding all items.");
 
