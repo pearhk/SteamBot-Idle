@@ -53,6 +53,26 @@ namespace SteamTrade
         {
             NumSlots = apiInventory.num_backpack_slots;
             Items = apiInventory.items;
+
+            if (Items != null)
+            {
+                foreach (Inventory.Item item in Items)
+                {
+                    if (item.Attributes != null)
+                    {
+                        foreach (ItemAttribute attr in item.Attributes)
+                        {
+                            if (attr.Defindex == 187)
+                            {
+                                item.IsCrate = true;
+                                item.CrateSeriesNumber = Convert.ToInt32(attr.FloatValue);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
             IsPrivate = (apiInventory.status == "15");
             IsGood = (apiInventory.status == "1");
         }
@@ -64,6 +84,17 @@ namespace SteamTrade
         public bool IsFreeToPlay()
         {
             return this.NumSlots % 100 == 50;
+        }
+
+        public bool ContainsItem(Inventory.Item item)
+        {
+            foreach (Inventory.Item InvItem in Items)
+            {
+                if (item.Id == InvItem.Id)
+                    return true;
+            }
+
+            return false;
         }
 
         public Item GetItem (ulong id)
@@ -131,6 +162,16 @@ namespace SteamTrade
 
             [JsonProperty("contained_item")]
             public Item ContainedItem { get; set; }
+
+            public bool IsCrate { get; set; }
+
+            public int CrateSeriesNumber { get; set; }
+
+            public Item()
+            {
+                IsCrate = false;
+                CrateSeriesNumber = -1;
+            }
         }
 
         public class ItemAttribute

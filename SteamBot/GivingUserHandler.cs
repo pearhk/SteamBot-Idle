@@ -24,19 +24,31 @@ namespace SteamBot
         {
             List<Inventory.Item> itemsToTrade = new List<Inventory.Item>();
 
-            // Optional Crafting
-            if (AutoCraftWeps)
-            {
-                AutoCraftAll();
-                // Inventory must be up-to-date before trade
-                Thread.Sleep(300);
-            }
-
             // Must get inventory here
             Log.Info("Getting Inventory");
             Bot.GetInventory();
 
-            itemsToTrade = GetAllNonCrates(Bot.MyInventory);
+            // Optional Crafting
+            if (AutoCraftWeps)
+            {
+                AutoCraftAll();
+            }
+
+            if (ManageCrates)
+            {
+                DeleteSelectedCrates(DeleteCrates);
+
+                // One more break before updating inventory
+                Thread.Sleep(500);
+                Bot.GetInventory();
+
+                itemsToTrade = GetTradeItems(Bot.MyInventory, TransferCrates);
+            }
+            else
+            {
+                itemsToTrade = GetTradeItems(Bot.MyInventory, 0);
+            }
+
             if (!BotItemMap.ContainsKey(mySteamID))
             {
                 BotItemMap.Add(mySteamID, itemsToTrade);
@@ -45,15 +57,24 @@ namespace SteamBot
 
             Log.Info("[Giving] " + Bot.DisplayName + " checking in. " + BotItemMap.Count + " of " + NumberOfBots + " Bots.");
 
-            if (BotItemMap[mySteamID].Count > 0)
+            if (!Bot.MyInventory.IsFreeToPlay())
             {
-                TradeReadyBots.Add(mySteamID);
-                Log.Info(Bot.DisplayName + " has items. Added to list." + TradeReadyBots.Count + " Bots waiting to trade.");
+                if (BotItemMap[mySteamID].Count > 0)
+                {
+                    TradeReadyBots.Add(mySteamID);
+                    Log.Info(Bot.DisplayName + " has items. Added to list." + TradeReadyBots.Count + " Bots waiting to trade.");
+                }
+                else
+                {
+                    Log.Warn(Bot.DisplayName + " did not have an item to trade.");
+                    Log.Warn("Stopping bot.");
+                    Bot.StopBot();
+                }
             }
             else
             {
-                Log.Warn(Bot.DisplayName + " did not have an item to trade.");
-                Log.Warn("Stopping bot.");
+                // Requires more info on f2p item characteristics.
+                Log.Warn(Bot.DisplayName + " is free to play. F2P trading is not configured yet.");
                 Bot.StopBot();
             }
         }
@@ -86,14 +107,7 @@ namespace SteamBot
                     OtherInit = true;
                     if (MeInit)
                     {
-                        AddAllItems();
-                    }
-                    break;
-
-                case "ready":
-                    if (OtherSID == PrimaryAltSID)
-                    {
-                        Bot.SteamFriends.SendChatMessage(PrimaryAltSID, EChatEntryType.ChatMsg, "ready");
+                        AddItems();
                     }
                     break;
 
@@ -119,10 +133,8 @@ namespace SteamBot
 
         public override void OnTradeError(string error)
         {
-            Bot.SteamFriends.SendChatMessage(OtherSID,
-                                              EChatEntryType.ChatMsg,
-                                              "Oh, there was an error: " + error + "."
-                                              );
+            Bot.SteamFriends.SendChatMessage(OtherSID, EChatEntryType.ChatMsg, "failed");
+
             Log.Warn(error);
         }
 
@@ -131,11 +143,21 @@ namespace SteamBot
             //Bot.SteamFriends.SendChatMessage(OtherSID, EChatEntryType.ChatMsg,
             //                                  "Trade timeout.");
             Log.Warn("Trade timeout.");
-            Log.Debug("Something's gone wrong.");
             Log.Info("Getting Inventory");
             Bot.GetInventory();
 
-            if (GetAllNonCrates(Bot.MyInventory).Count > 0)
+            int ItemsLeft = 0;
+
+            if (ManageCrates)
+            {
+                ItemsLeft = GetTradeItems(Bot.MyInventory, TransferCrates).Count;
+            }
+            else
+            {
+                ItemsLeft = GetTradeItems(Bot.MyInventory, 0).Count;
+            }
+
+            if (ItemsLeft > 0)
             {
                 Log.Debug("Still have items to trade");
                 //errorOcccured = true;
@@ -152,11 +174,10 @@ namespace SteamBot
             }
         }
 
-        public override void  OnTradeClose()
+        public override void OnTradeClose()
         {
             Log.Warn ("[Giving] TRADE CLOSED");
             Bot.CloseTrade ();
-            // traded = true;
         }
 
         public override void OnTradeInit()
@@ -167,7 +188,7 @@ namespace SteamBot
 
             if (OtherInit)
             {
-                AddAllItems();
+                AddItems();
             }
         }
 
@@ -209,9 +230,11 @@ namespace SteamBot
             OnTradeClose();
         }
 
-        public void AddAllItems()
+        public void AddItems()
         {
             Thread.Sleep(500);
+
+            Bot.GetInventory();
 
             Log.Debug("Adding all items.");
 
@@ -231,7 +254,18 @@ namespace SteamBot
             {
                 Log.Debug("Something's gone wrong.");
                 Bot.GetInventory();
-                if (GetAllNonCrates(Bot.MyInventory).Count > 0)
+                int ItemsLeft = 0;
+
+                if (ManageCrates)
+                {
+                    ItemsLeft = GetTradeItems(Bot.MyInventory, TransferCrates).Count;
+                }
+                else
+                {
+                    ItemsLeft = GetTradeItems(Bot.MyInventory, 0).Count;
+                }
+
+                if (ItemsLeft > 0)
                 {
                     Log.Debug("Still have items to trade, aborting trade.");
                     //errorOcccured = true;
@@ -266,7 +300,18 @@ namespace SteamBot
                 Log.Warn("Trade might have failed.");
                 Bot.GetInventory();
 
-                if (GetAllNonCrates(Bot.MyInventory).Count == 0)
+                int ItemsLeft = 0;
+
+                if (ManageCrates)
+                {
+                    ItemsLeft = GetTradeItems(Bot.MyInventory, TransferCrates).Count;
+                }
+                else
+                {
+                    ItemsLeft = GetTradeItems(Bot.MyInventory, 0).Count;
+                }
+
+                if (ItemsLeft > 0)
                 {
                     Log.Warn("Bot has no items, trade may have succeeded. Removing bot.");
                     TradeReadyBots.Remove(mySteamID);

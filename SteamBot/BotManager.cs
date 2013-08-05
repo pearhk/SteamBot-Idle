@@ -70,7 +70,7 @@ namespace SteamBot
         }
 
         /// <summary>
-        /// Starts the bots that have been configured.
+        /// Starts the bots that have been configured, starting Receiving, Crate, and Main UserHandlers first.
         /// </summary>
         /// <returns><c>false</c> if there was something wrong with the configuration or logging.</returns>
         public bool StartBots()
@@ -78,10 +78,36 @@ namespace SteamBot
             if (ConfigObject == null || mainLog == null)
                 return false;
 
+            // Start special UserHandlers if they exist.
+            // Unsure why only AutoStartAllBots has the Sleep delay.
+            if (ConfigObject.ReceivingIndex > -1)
+            {
+                mainLog.Info("ReceivingUserHandler Found. Starting " + botProcs[ConfigObject.ReceivingIndex].BotConfig.DisplayName + "...");
+                botProcs[ConfigObject.ReceivingIndex].Start();
+                Thread.Sleep(2000);
+            }
+
+            if (ConfigObject.CrateIndex > -1)
+            {
+                mainLog.Info("CrateUserHandler Found. Starting " + botProcs[ConfigObject.CrateIndex].BotConfig.DisplayName + "...");
+                botProcs[ConfigObject.CrateIndex].Start();
+                Thread.Sleep(2000);
+            }
+
+            if (ConfigObject.MainIndex > -1)
+            {
+                mainLog.Info("MainUserHandler Found. Starting " + botProcs[ConfigObject.MainIndex].BotConfig.DisplayName + "...");
+                botProcs[ConfigObject.MainIndex].Start();
+                Thread.Sleep(2000);
+            }
+
+            // Starting the rest.
             foreach (var runningBot in botProcs)
             {
+                if (runningBot.BotConfig.BotControlClass == "SteamBot.GivingUserHandler")
                 runningBot.Start();
 
+                // Will probably make this sleep timer a variable in config.
                 Thread.Sleep(2000);
             }
 

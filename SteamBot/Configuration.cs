@@ -10,32 +10,74 @@ namespace SteamBot
 {
     public class Configuration
     {
-        public static Configuration LoadConfiguration (string filename)
+        public static Configuration LoadConfiguration(string filename)
         {
             TextReader reader = new StreamReader(filename);
             string json = reader.ReadToEnd();
             reader.Close();
 
-            Configuration config =  JsonConvert.DeserializeObject<Configuration>(json);
+            Configuration config = JsonConvert.DeserializeObject<Configuration>(json);
 
             config.Admins = config.Admins ?? new ulong[0];
-            int bots = config.Bots.Length;
+            int bots = 0;
 
-            if (!config.AutoStartAllBots)
+            // Gets number of Bots AutoStarting
+            // Also checks and assigns indexes of special UserHandlers
+            for (int index = 0; index < config.Bots.Length; index++)
             {
-                // Gets number of Bots by removing those that don't start
-                foreach (BotInfo bot in config.Bots)
-                {
-                    if (!bot.AutoStart)
+                switch (config.Bots[index].BotControlClass)
                     {
-                        bots--;
+                        case "SteamBot.GivingUserHandler":
+                            if (config.Bots[index].AutoStart)
+                            {
+                                bots++;
+                            }
+                            break;
+
+                        case "SteamBot.ReceivingUserHandler":
+                            config.ReceivingIndex = index;
+                            if (config.Bots[index].AutoStart)
+                            {
+                                bots++;
+                            }
+                            break;
+
+                        case "SteamBot.MainUserHandler":
+                            config.MainIndex = index;
+                            if (config.Bots[index].AutoStart)
+                            {
+                                config.HasMainUHLoaded = true;
+                                bots++;
+                            }
+                            break;
+
+                        case "SteamBot.CrateUserHandler":
+                            config.CrateIndex = index;
+                            if (config.Bots[index].AutoStart)
+                            {
+                                config.HasCrateUHLoaded = true;
+                                bots++;
+                            }
+                            break;
+
+                        default:
+                            Console.WriteLine("Bot with unknown UserHandler found in config: " + config.Bots[index].BotControlClass);
+                            break;
                     }
-                }
+            }
+
+            if (config.AutoStartAllBots)
+            {
+                config.HasCrateUHLoaded = (config.CrateIndex > -1);
+
+                config.HasMainUHLoaded = (config.MainIndex > -1);
+                
+                bots = config.Bots.Length;
             }
 
             if (config.UseSeparateProcesses)
             {
-                // Seperate Processes not currently supported.
+                // Seperate Processes not currently supported. (Not likely in the future either)
                 Console.WriteLine("Seperate Processes not supported.");
                 config.TotalBots = 0;
             }
@@ -61,7 +103,17 @@ namespace SteamBot
         }
 
         #region Top-level config properties
-        
+
+        /// <summary>
+        /// Gets or sets the way the program starts by default. *Important*
+        /// </summary>
+        /// <value>
+        /// 0 = do nothing
+        /// 1 = "normal mode", standard idle harvesting
+        /// 2 = crate handling only
+        /// </value>
+        public int BotMode { get; set; }
+
         /// <summary>
         /// Gets or sets the admins.
         /// </summary>
@@ -117,14 +169,29 @@ namespace SteamBot
         public bool AutoStartAllBots { get; set; }
 
         /// <summary>
-        /// Gets or sets a value indicating whether to auto craft all weapons in
-        /// the bots' inventories.
+        /// Holds the index of the ReceivingUserHandler bot. Currently supports only one Receiver.
         /// </summary>
-        /// <value>
-        /// <c>true</c> to make the bots craft any weapons before trading.
-        /// <c>false</c> to not craft any weapons at all.
-        /// </value>
-        public bool AutoCraftWeapons { get; set; }
+        public int ReceivingIndex = -1;
+
+        /// <summary>
+        /// True if a MainUserHandler is specified in the settings and is set to AutoStart
+        /// </summary>
+        public bool HasMainUHLoaded = false;
+
+        /// <summary>
+        /// Holds the index of the MainUserHandler bot if it exists, otherwise -1).
+        /// </summary>
+        public int MainIndex = -1;
+
+        /// <summary>
+        /// True if a CrateUserHandler is specified in the settings and is set to AutoStart
+        /// </summary>
+        public bool HasCrateUHLoaded = false;
+
+        /// <summary>
+        /// Holds the index of the CrateUserHandler bot if it exists, otherwise -1). Currently supports only one Crate handler.
+        /// </summary>
+        public int CrateIndex = -1;
 
         /// <summary>
         /// Gets or sets a value indicating the total number of bots being loaded.
@@ -165,8 +232,67 @@ namespace SteamBot
 
         public class Optional
         {
-            public int[] Crates { get; set; }
-            public bool MyOption { get; set; }
+            /// <summary>
+            /// Gets or sets a value indicating whether to auto craft all weapons in
+            /// the bots' inventories. Defaults to false.
+            /// </summary>
+            /// <value>
+            /// <c>true</c> to make the bots craft any weapons before trading.
+            /// <c>false</c> to not craft any weapons at all.
+            /// </value>
+            [JsonProperty(Required = Required.Default, DefaultValueHandling = DefaultValueHandling.Populate)]
+            [DefaultValue(false)]
+            public bool AutoCraftWeapons { get; set; }
+
+            /// <summary>
+            /// Gets or sets a value indicating whether to manage any Crates found in inventories. (salvaged will be handled like items)
+            /// Defaults to false. CrateUserHandler required for use.
+            /// </summary>
+            /// <value>
+            /// <c>true</c> to handle Crates.
+            /// <c>false</c> to ignore Crates.
+            /// </value>
+            [JsonProperty(Required = Required.Default, DefaultValueHandling = DefaultValueHandling.Populate)]
+            [DefaultValue(false)]
+            public bool ManageCrates { get; set; }
+
+            /// <summary>
+            /// Gets or sets a value indicating how to handle Crate deletion. (Crates in SavedCrates will always
+            /// be excluded.)
+            /// 0 indicates no crates will be deleted.
+            /// 1 indicates only standard mann co. crates will be deleted
+            /// 2 indicates only event crates will be deleted (e.g. eerie/summer/winter crates)
+            /// 3 indicates all crates will be deleted.
+            /// Defaults to 0.
+            /// </summary>
+            /// <value>
+            /// <c>true</c> to delete normal Crates, CrateUserHandler not required.
+            /// <c>false</c> to save Crates.
+            /// </value>
+            [JsonProperty(Required = Required.Default, DefaultValueHandling = DefaultValueHandling.Populate)]
+            [DefaultValue(false)]
+            public int DeleteCrates { get; set; }
+
+            /// <summary>
+            /// Gets or sets a value indicating how to transfer Crates.
+            /// 0 indicates no crates will be moved from idles.
+            /// 1 indicates only standard mann co. crates will be moved from idles.
+            /// 2 indicates only event crates will be moved from idles. (e.g. eerie/summer/winter crates)
+            /// 3 indicates all crates will be moved from idles.
+            /// Defaults to 0.
+            /// </summary>
+            /// <value>
+            /// <c>true</c> to delete normal Crates, CrateUserHandler not required.
+            /// <c>false</c> to save Crates.
+            /// </value>
+            [JsonProperty(Required = Required.Default, DefaultValueHandling = DefaultValueHandling.Populate)]
+            [DefaultValue(false)]
+            public int TransferCrates { get; set; }
+
+            /// <summary>
+            /// Gets or sets an array specifying series numbers of crates to save.
+            /// </summary>
+            public int[] SavedCrates { get; set; }
         }
 
         public class BotInfo
@@ -194,8 +320,8 @@ namespace SteamBot
             /// If <see cref="SteamBot.Configuration.AutoStartAllBots "/> is true,
             /// then this property has no effect and is ignored.
             /// </remarks>
-            [JsonProperty (Required = Required.Default, DefaultValueHandling = DefaultValueHandling.Populate)]
-            [DefaultValue (true)]
+            [JsonProperty(Required = Required.Default, DefaultValueHandling = DefaultValueHandling.Populate)]
+            [DefaultValue(true)]
             public bool AutoStart { get; set; }
 
             public override string ToString()
@@ -206,7 +332,7 @@ namespace SteamBot
                 foreach (var propInfo in fields)
                 {
                     sb.AppendFormat("{0} = {1}" + Environment.NewLine,
-                        propInfo.Name, 
+                        propInfo.Name,
                         propInfo.GetValue(this, null));
                 }
 

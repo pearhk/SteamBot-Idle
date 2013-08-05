@@ -147,9 +147,30 @@ namespace SteamBot
                 }
                 else
                 {
+                    // Start special UserHandlers if they exist and are set to AutoStart
+                    // Something tells me there's a simpler way to write this but I'm too tired to look.
+                    if (manager.ConfigObject.ReceivingIndex > -1 && manager.ConfigObject.Bots[manager.ConfigObject.ReceivingIndex].AutoStart)
+                    {
+                        Console.WriteLine("ReceivingUserHandler Found. Starting " + manager.ConfigObject.Bots[manager.ConfigObject.ReceivingIndex].DisplayName + "...");
+                        manager.StartBot(manager.ConfigObject.ReceivingIndex);
+                    }
+
+                    if (manager.ConfigObject.CrateIndex > -1 && manager.ConfigObject.Bots[manager.ConfigObject.CrateIndex].AutoStart)
+                    {
+                        Console.WriteLine("CrateUserHandler Found. Starting " + manager.ConfigObject.Bots[manager.ConfigObject.CrateIndex].DisplayName + "...");
+                        manager.StartBot(manager.ConfigObject.CrateIndex);
+                    }
+
+                    if (manager.ConfigObject.MainIndex > -1 && manager.ConfigObject.Bots[manager.ConfigObject.MainIndex].AutoStart)
+                    {
+                        Console.WriteLine("MainUserHandler Found. Starting " + manager.ConfigObject.Bots[manager.ConfigObject.MainIndex].DisplayName + "...");
+                        manager.StartBot(manager.ConfigObject.MainIndex);
+                    }
+
                     foreach (var botInfo in manager.ConfigObject.Bots)
                     {
-                        if (botInfo.AutoStart)
+                        // Start the rest
+                        if (botInfo.BotControlClass == "SteamBot.GivingUserHandler" && botInfo.AutoStart)
                         {
                             // auto start this particual bot...
                             manager.StartBot(botInfo.Username);

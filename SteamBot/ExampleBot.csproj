@@ -49,6 +49,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="CrateUserHandler.cs" />
     <Compile Include="MainUserHandler.cs" />
     <Compile Include="GivingUserHandler.cs" />
     <Compile Include="ReceivingUserHandler.cs" />
