@@ -15,6 +15,7 @@ namespace SteamBot
         bool OtherAdded = false;
         bool MeAdded = false;
 
+        // Todo: move the item-check after a failed trade to a separate method to clean up handler.
         public ReceivingUserHandler(Bot bot, SteamID sid, Configuration config) : base(bot, sid, config)
         {
             Success = false;
@@ -153,8 +154,6 @@ namespace SteamBot
 
         public override void OnTradeTimeout()
         {
-            //Bot.SteamFriends.SendChatMessage(OtherSID, EChatEntryType.ChatMsg,
-            //                                  "Trade timeout.");
             Log.Warn("Trade timeout.");
             Bot.GetOtherInventory(OtherSID);
 

@@ -798,11 +798,11 @@ namespace SteamBot
         {
             Log.Debug("Getting list of craftable weapons from schema");
             var CraftableItemList = Trade.CurrentSchema.GetItemsByCraftingMaterial(CraftingMaterial);
-            List<Inventory.Item> myItems = new List<Inventory.Item>();
+            var myItems = new List<Inventory.Item>();
 
             foreach (Inventory.Item invItem in Bot.MyInventory.Items)
             {
-                if (!invItem.IsNotTradeable || !invItem.IsNotCraftable || invItem.Quality == "unique")
+                if (!invItem.IsNotTradeable && !invItem.IsNotCraftable && invItem.Quality == "unique")
                 {
                     foreach (Schema.Item scItem in CraftableItemList)
                     {

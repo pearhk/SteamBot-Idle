@@ -11,7 +11,7 @@
             "AutoCraftWeapons": "true",  // Option to Craft all weapons, will craft each Giving bot first then again when finished trading
             "ManageCrates": "false",  // Option to manage (trade/delete) Crates. CrateUserHandler required to collect crates.
             "DeleteCrates": "0", // Select which crates to delete. (0 = none, 1 = standard dropping crates, 2 = "event" crates, 3 = all crates) - rare dropping crates are never deleted.
-			"TransferCrates": "0", // Same as delete except which crates to trade.
+            "TransferCrates": "0", // Same as delete except which crates to trade.
             "SavedCrates": [1,13,23] // Crate series #'s selected to be saved from deletion, will also be collected.
         }
 		,

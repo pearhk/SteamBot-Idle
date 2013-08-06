@@ -8,9 +8,9 @@
 "Options":
         {
             "AutoCraftWeapons": "false",
-			"ManageCrates": "false",
+            "ManageCrates": "false",
             "DeleteCrates": "0",
-			"TransferCrates": "0",
+            "TransferCrates": "0",
             "SavedCrates": []
         }
         ,
