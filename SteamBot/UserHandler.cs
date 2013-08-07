@@ -802,7 +802,7 @@ namespace SteamBot
 
             foreach (Inventory.Item invItem in Bot.MyInventory.Items)
             {
-                if (!invItem.IsNotTradeable && !invItem.IsNotCraftable && invItem.Quality == "unique")
+                if (!invItem.IsNotTradeable && !invItem.IsNotCraftable && invItem.Quality == "6")
                 {
                     foreach (Schema.Item scItem in CraftableItemList)
                     {
