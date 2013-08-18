@@ -24,7 +24,7 @@ namespace SteamTrade
         /// <param name="rawJson">
         /// The json returned from the foreigninventory Web API call.
         /// </param>
-        public ForeignInventory(dynamic rawJson)
+        public ForeignInventory (dynamic rawJson)
         {
             this.rawJson = rawJson;
 
@@ -42,8 +42,7 @@ namespace SteamTrade
         /// </value>
         public bool InventoryValid
         {
-            get;
-            private set;
+            get; private set;
         }
 
         /// <summary>
@@ -62,7 +61,7 @@ namespace SteamTrade
             catch (Exception e)
             {
                 Console.WriteLine(e);
-                return 0;
+                return 0;    
             }
         }
 

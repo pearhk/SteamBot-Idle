@@ -105,7 +105,7 @@ namespace SteamBot
             foreach (var runningBot in botProcs)
             {
                 if (runningBot.BotConfig.BotControlClass == "SteamBot.GivingUserHandler")
-                runningBot.Start();
+                    runningBot.Start();
 
                 // Will probably make this sleep timer a variable in config.
                 Thread.Sleep(2000);
@@ -148,7 +148,7 @@ namespace SteamBot
             mainLog.Debug(String.Format("Killing bot with username {0}.", botUserName));
 
             var res = from b in botProcs
-                      where b.BotConfig.Username == botUserName
+                      where b.BotConfig.Username.Equals(botUserName, StringComparison.CurrentCultureIgnoreCase)
                       select b;
 
             foreach (var bot in res)
@@ -180,7 +180,7 @@ namespace SteamBot
             mainLog.Debug(String.Format("Starting bot with username {0}.", botUserName));
 
             var res = from b in botProcs
-                      where b.BotConfig.Username == botUserName
+                      where b.BotConfig.Username.Equals(botUserName, StringComparison.CurrentCultureIgnoreCase)
                       select b;
 
             foreach (var bot in res)
@@ -199,15 +199,17 @@ namespace SteamBot
         {
             if (index < botProcs.Count)
             {
-                if (!botProcs[index].UsingProcesses)
-                    botProcs[index].TheBot.AuthCode = AuthCode;
-                else
+                if (botProcs[index].UsingProcesses)
                 {
                     //  Write out auth code to the bot process' stdin
                     StreamWriter BotStdIn = botProcs[index].BotProcess.StandardInput;
 
                     BotStdIn.WriteLine("auth " + AuthCode);
                     BotStdIn.Flush();
+                }
+                else
+                {
+                    botProcs[index].TheBot.AuthCode = AuthCode;
                 }
             }
         }
@@ -219,28 +221,32 @@ namespace SteamBot
         /// <param name="command">The command to be executed</param>
         public void SendCommand(int index, string command)
         {
-            mainLog.Debug(String.Format("Sending command {0} to Bot at index {1}", command, index));
+            mainLog.Debug(String.Format("Sending command \"{0}\" to Bot at index {1}", command, index));
             if (index < botProcs.Count)
             {
                 if (botProcs[index].IsRunning)
                 {
-                    if (!botProcs[index].UsingProcesses)
+                    if (botProcs[index].UsingProcesses)
                     {
-                        botProcs[index].TheBot.HandleBotCommand(command);
-                    }
-                    else
-                    {
-                        //  Write out exec code to the bot process' stdin
+                        //  Write out the exec command to the bot process' stdin
                         StreamWriter BotStdIn = botProcs[index].BotProcess.StandardInput;
 
                         BotStdIn.WriteLine("exec " + command);
                         BotStdIn.Flush();
                     }
+                    else
+                    {
+                        botProcs[index].TheBot.HandleBotCommand(command);
+                    }
                 }
                 else
                 {
-                    mainLog.Debug(String.Format("Error: Bot at index {0} is not running. Use 'Start' command first", index));
+                    mainLog.Warn(String.Format("Bot at index {0} is not running. Use the 'Start' command first", index));
                 }
+            }
+            else
+            {
+                mainLog.Warn(String.Format("Invalid Bot index: {0}", index));
             }
         }
 
@@ -249,10 +255,9 @@ namespace SteamBot
         /// </summary>
         /// <param name="bot">The bot.</param>
         /// <param name="sid">The steamId.</param>
-        /// <param name="config">Config info, cause why the hell not</param>
         /// <returns>A <see cref="UserHandler"/> instance.</returns>
         /// <exception cref="ArgumentException">Thrown if the control class type does not exist.</exception>
-        public static UserHandler UserHandlerCreator(Bot bot, SteamID sid, Configuration config)
+        public static UserHandler UserHandlerCreator(Bot bot, SteamID sid)
         {
             Type controlClass = Type.GetType(bot.BotControlClass);
 
@@ -260,7 +265,7 @@ namespace SteamBot
                 throw new ArgumentException("Configured control class type was null. You probably named it wrong in your configuration file.", "bot");
 
             return (UserHandler)Activator.CreateInstance(
-                    controlClass, new object[] { bot, sid, config });
+                    controlClass, new object[] { bot, sid });
         }
 
         #region Nested RunningBot class
@@ -377,8 +382,7 @@ namespace SteamBot
             private void SpawnBotThread(Configuration.BotInfo botConfig)
             {
                 // the bot object itself is threaded so we just build it and start it.
-                Bot b = new Bot(config,
-                                botConfig,
+                Bot b = new Bot(botConfig,
                                 config.ApiKey,
                                 UserHandlerCreator,
                                 true);

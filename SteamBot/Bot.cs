@@ -10,7 +10,6 @@ using System.ComponentModel;
 using SteamKit2;
 using SteamTrade;
 using SteamKit2.Internal;
-using System.Windows.Forms;
 
 namespace SteamBot
 {
@@ -45,7 +44,7 @@ namespace SteamBot
         // The log for the bot.  This logs with the bot's display name.
         public Log log;
 
-        public delegate UserHandler UserHandlerCreator(Bot bot, SteamID id, Configuration config);
+        public delegate UserHandler UserHandlerCreator(Bot bot, SteamID id);
         public UserHandlerCreator CreateHandler;
         Dictionary<ulong, UserHandler> userHandlers = new Dictionary<ulong, UserHandler>();
 
@@ -92,45 +91,40 @@ namespace SteamBot
 
         private BackgroundWorker backgroundWorker;
 
-        public Configuration config;
-
-        public Bot(Configuration config, Configuration.BotInfo botConfig, string apiKey, UserHandlerCreator handlerCreator, bool debug = false, bool process = false)
+        public Bot(Configuration.BotInfo config, string apiKey, UserHandlerCreator handlerCreator, bool debug = false, bool process = false)
         {
-            this.config = config;
             logOnDetails = new SteamUser.LogOnDetails
             {
-                Username = botConfig.Username,
-                Password = botConfig.Password
+                Username = config.Username,
+                Password = config.Password
             };
-            DisplayName = botConfig.DisplayName;
-            ChatResponse = botConfig.ChatResponse;
-            MaximumTradeTime = botConfig.MaximumTradeTime;
-            MaximiumActionGap = botConfig.MaximumActionGap;
-            DisplayNamePrefix = botConfig.DisplayNamePrefix;
-            TradePollingInterval = botConfig.TradePollingInterval <= 100 ? 800 : botConfig.TradePollingInterval;
-
+            DisplayName  = config.DisplayName;
+            ChatResponse = config.ChatResponse;
+            MaximumTradeTime = config.MaximumTradeTime;
+            MaximiumActionGap = config.MaximumActionGap;
+            DisplayNamePrefix = config.DisplayNamePrefix;
+            TradePollingInterval = config.TradePollingInterval <= 100 ? 800 : config.TradePollingInterval;
             Admins = config.Admins;
             this.apiKey  = apiKey;
             this.isprocess = process;
-            
             try
             {
-                LogLevel = (Log.LogLevel)Enum.Parse(typeof(Log.LogLevel), botConfig.LogLevel, true);
+                LogLevel = (Log.LogLevel)Enum.Parse(typeof(Log.LogLevel), config.LogLevel, true);
             }
             catch (ArgumentException)
             {
                 Console.WriteLine("Invalid LogLevel provided in configuration. Defaulting to 'INFO'");
                 LogLevel = Log.LogLevel.Info;
             }
-            this.LogFile = botConfig.LogFile;
-            log = new Log(this.LogFile, this.DisplayName, LogLevel);
+            this.LogFile = config.LogFile;
+            log = new Log (this.LogFile, this.DisplayName, LogLevel);
             CreateHandler = handlerCreator;
-            BotControlClass = botConfig.BotControlClass;
+            BotControlClass = config.BotControlClass;
 
             // Hacking around https
             ServicePointManager.ServerCertificateValidationCallback += SteamWeb.ValidateRemoteCertificate;
 
-            log.Debug ("Initializing Steam Bot...");
+            log.Debug("Initializing Steam Bot...");
             SteamClient = new SteamClient();
             SteamTrade = SteamClient.GetHandler<SteamTrading>();
             SteamUser = SteamClient.GetHandler<SteamUser>();
@@ -160,6 +154,8 @@ namespace SteamBot
         /// <returns><c>true</c>. See remarks</returns>
         public bool StartBot()
         {
+            IsRunning = true;
+
             log.Info("Connecting...");
 
             if (!backgroundWorker.IsBusy)
@@ -178,10 +174,7 @@ namespace SteamBot
         /// <summary>
         /// Starts the callback thread and connects to Steam via SteamKit2.
         /// </summary>
-        /// <remarks>
-        /// THIS NEVER RETURNS.
-        /// </remarks>
-        /// <returns><c>true</c>. See remarks</returns>
+        /// <returns><c>true</c>.</returns>
         public bool RestartBot()
         {
             if (IsRunning)
@@ -211,7 +204,7 @@ namespace SteamBot
 
             log.Info("Done Loading Bot!");
 
-            return true; // never get here
+            return true;
         }
 
         /// <summary>
@@ -220,12 +213,12 @@ namespace SteamBot
         /// </summary>
         public void StopBot()
         {
+            IsRunning = false;
+
             log.Debug("Trying to shut down bot thread.");
             SteamClient.Disconnect();
 
             backgroundWorker.CancelAsync();
-
-            IsRunning = false;
         }
 
         /// <summary>
@@ -269,7 +262,28 @@ namespace SteamBot
         void OnTradeEnded (object sender, EventArgs e)
         {
             CloseTrade();
-        }        
+        }
+
+        public void HandleBotCommand(string command)
+        {
+            try
+            {
+                GetUserHandler(SteamClient.SteamID).OnBotCommand(command);
+            }
+            catch (ObjectDisposedException e)
+            {
+                // Writing to console because odds are the error was caused by a disposed log.
+                Console.WriteLine(string.Format("Exception caught in BotCommand Thread: {0}", e));
+                if (!this.IsRunning)
+                {
+                    Console.WriteLine("The Bot is no longer running and could not write to the log. Try Starting this bot first.");
+                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(string.Format("Exception caught in BotCommand Thread: {0}", e));
+            }
+        }
 
         bool HandleTradeSessionStart (SteamID other)
         {
@@ -325,21 +339,6 @@ namespace SteamBot
             SteamClient.Send(gamePlaying);
 
             CurrentGame = id;
-        }
-
-        public void HandleBotCommand(string command)
-        {
-            try
-            {
-                GetUserHandler(SteamClient.SteamID).OnBotCommand(command);
-            }
-            catch (Exception e)
-            {
-                // Writing to console because odds are the error was caused by a disposed log.
-                // This works as a strange but effective way to stop other processes.
-                Console.WriteLine(string.Format("Exception caught in BotCommand Thread: {0}", e));
-            }
-
         }
 
         void HandleSteamMessage (CallbackMsg msg)
@@ -506,7 +505,7 @@ namespace SteamBot
                     tradeManager.InitializeTrade(SteamUser.SteamID, callback.OtherClient);
                 }
                 catch (WebException we)
-                {
+                {                 
                     SteamFriends.SendChatMessage(callback.OtherClient,
                              EChatEntryType.ChatMsg,
                              "Trade error: " + we.Message);
@@ -578,8 +577,8 @@ namespace SteamBot
         {
             // get sentry file which has the machine hw info saved 
             // from when a steam guard code was entered
-            Directory.CreateDirectory(Application.StartupPath + "\\Sentry Files");
-            FileInfo fi = new FileInfo(String.Format("Sentry Files\\{0}.sentryfile", logOnDetails.Username));
+            Directory.CreateDirectory(System.IO.Path.Combine(System.Windows.Forms.Application.StartupPath, "sentryfiles"));
+            FileInfo fi = new FileInfo(System.IO.Path.Combine("sentryfiles",String.Format("{0}.sentryfile", logOnDetails.Username)));
 
             if (fi.Exists && fi.Length > 0)
                 logOnDetails.SentryFileHash = SHAHash(File.ReadAllBytes(fi.FullName));
@@ -593,7 +592,7 @@ namespace SteamBot
         {
             if (!userHandlers.ContainsKey (sid))
             {
-                userHandlers [sid.ConvertToUInt64 ()] = CreateHandler (this, sid, config);
+                userHandlers [sid.ConvertToUInt64 ()] = CreateHandler (this, sid);
             }
             return userHandlers [sid.ConvertToUInt64 ()];
         }
@@ -613,8 +612,9 @@ namespace SteamBot
         {
             byte[] hash = SHAHash (machineAuth.Data);
 
-            Directory.CreateDirectory(Application.StartupPath + "\\Sentry Files");
-            File.WriteAllBytes (String.Format ("Sentry Files\\{0}.sentryfile", logOnDetails.Username), machineAuth.Data);
+            Directory.CreateDirectory(System.IO.Path.Combine(System.Windows.Forms.Application.StartupPath, "sentryfiles"));
+
+            File.WriteAllBytes (System.IO.Path.Combine("sentryfiles", String.Format("{0}.sentryfile", logOnDetails.Username)), machineAuth.Data);
             
             var authResponse = new SteamUser.MachineAuthDetails
             {
@@ -740,7 +740,6 @@ namespace SteamBot
             {
                 CallbackMsg msg = SteamClient.WaitForCallback(true);
                 HandleSteamMessage(msg);
-
             }
         }
 
@@ -756,25 +755,16 @@ namespace SteamBot
                 handler(this, e);
             else
             {
-                //if (!this.isprocess)
-                //{
-                    while (true)
+                while (true)
+                {
+                    if (this.AuthCode != null)
                     {
-                        if (this.AuthCode != null)
-                        {
-                            e.SteamGuard = this.AuthCode;
-                            break;
-                        }
-
-                        Thread.Sleep(5);
+                        e.SteamGuard = this.AuthCode;
+                        break;
                     }
-                //}
-                //else
-                //{
-                //    // Apparently we're a process. So read in the code from stdin.
-                //    this.AuthCode = Console.ReadLine();
-                //    e.SteamGuard = this.AuthCode;
-                //}
+
+                    Thread.Sleep(5);
+                }
             }
         }
     }

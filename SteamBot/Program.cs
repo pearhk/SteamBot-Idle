@@ -2,7 +2,6 @@ using System;
 using System.IO;
 using System.Runtime.InteropServices;
 using NDesk.Options;
-using System.Threading;
 
 namespace SteamBot
 {
@@ -69,21 +68,21 @@ namespace SteamBot
                 return;
             }
 
-            if (!(botIndex < configObject.Bots.Length))
+            if (botIndex >= configObject.Bots.Length)
             {
                 Console.WriteLine("Invalid bot index.");
                 return;
             }
-            // Moved Bot b out to allow access from the input loop
-            Bot b = new Bot(configObject, configObject.Bots[botIndex], configObject.ApiKey, BotManager.UserHandlerCreator, true, true);
-            Console.Title = configObject.Bots[botIndex].DisplayName;
-            b.StartBot(); // never returns from this.
 
-            string AuthCommand = "auth";
+            Bot b = new Bot(configObject.Bots[botIndex], configObject.ApiKey, BotManager.UserHandlerCreator, true, true);
+            Console.Title = "Bot Manager";
+            b.StartBot();
+
+            string AuthSet = "auth";
             string ExecCommand = "exec";
 
             // this loop is needed to keep the botmode console alive.
-            // instead of just sleeping, this thread will handle console input
+            // instead of just sleeping, this loop will handle console input
             while (true)
             {
                 string inputText = Console.ReadLine();
@@ -91,22 +90,20 @@ namespace SteamBot
                 if (String.IsNullOrEmpty(inputText))
                     continue;
 
-                // Small parse for BotMode input
+                // Small parse for console input
                 var c = inputText.Trim();
 
                 var cs = c.Split(' ');
 
                 if (cs.Length > 1)
                 {
-                    if (cs[0].Equals(AuthCommand, StringComparison.CurrentCultureIgnoreCase))
+                    if (cs[0].Equals(AuthSet, StringComparison.CurrentCultureIgnoreCase))
                     {
-                        var AuthThread = new Thread(() => b.AuthCode = cs[1].Trim());
-                        AuthThread.Start();
+                        b.AuthCode = cs[1].Trim();
                     }
                     else if (cs[0].Equals(ExecCommand, StringComparison.CurrentCultureIgnoreCase))
                     {
-                        var CommandThread = new Thread(() => b.HandleBotCommand(c.Remove(0, cs[0].Length + 1)));
-                        CommandThread.Start();
+                        b.HandleBotCommand(c.Remove(0, cs[0].Length + 1));
                     }
                 }
             }
@@ -191,8 +188,7 @@ namespace SteamBot
                     if (String.IsNullOrEmpty(inputText))
                         continue;
 
-                    var CommandThread = new Thread(() => bmi.CommandInterpreter(inputText));
-                    CommandThread.Start();
+                    bmi.CommandInterpreter(inputText);
 
                     Console.Write("botmgr > ");
 

@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using System.Windows.Forms;
 
 namespace SteamBot
 {
@@ -29,8 +28,8 @@ namespace SteamBot
 
         public Log (string logFile, string botName = "", LogLevel output = LogLevel.Info)
         {
-            Directory.CreateDirectory(Application.StartupPath + "\\Logs");
-            _FileStream = File.AppendText ("Logs\\" + logFile);
+            Directory.CreateDirectory(System.IO.Path.Combine(System.Windows.Forms.Application.StartupPath, "logs"));
+            _FileStream = File.AppendText (System.IO.Path.Combine("logs",logFile));
             _FileStream.AutoFlush = true;
             _Bot = botName;
             OutputToConsole = output;
