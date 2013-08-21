@@ -46,7 +46,6 @@ namespace SteamBot
                             config.MainIndex = index;
                             if (config.Bots[index].AutoStart)
                             {
-                                config.HasMainUHLoaded = true;
                                 bots++;
                             }
                             break;
@@ -55,7 +54,6 @@ namespace SteamBot
                             config.CrateIndex = index;
                             if (config.Bots[index].AutoStart)
                             {
-                                config.HasCrateUHLoaded = true;
                                 bots++;
                             }
                             break;
@@ -67,37 +65,11 @@ namespace SteamBot
             }
 
             if (config.AutoStartAllBots)
-            {
-                config.HasCrateUHLoaded = (config.CrateIndex > -1);
-
-                config.HasMainUHLoaded = (config.MainIndex > -1);
-                
+            {                
                 bots = config.Bots.Length;
             }
 
-            if (config.UseSeparateProcesses)
-            {
-                // Seperate Processes not currently supported. (Not likely in the future either)
-                Console.WriteLine("Seperate Processes not supported.");
-                config.TotalBots = 0;
-            }
-            else
-            {
-                config.TotalBots = bots;
-            }
-
-            // None of this should be neccessary.
-            //foreach (BotInfo bot in config.Bots)
-            //{
-            //    // merge bot-specific admins with global admins
-            //    foreach (ulong admin in config.Admins)
-            //    {
-            //        if (!bot.Admins.Contains(admin))
-            //        {
-            //            bot.Admins.Add(admin);
-            //        }
-            //    }
-            //}
+            config.TotalBots = bots;
 
             return config;
         }
@@ -150,16 +122,6 @@ namespace SteamBot
         public string MainLog { get; set; }
 
         /// <summary>
-        /// Gets or sets a value indicating whether to use separate processes.
-        /// </summary>
-        /// <value>
-        /// <c>true</c> if bot manager is to open each bot in it's own process;
-        /// otherwise, <c>false</c> to open each bot in a separate thread.
-        /// Default is <c>false</c>.
-        /// </value>
-        public bool UseSeparateProcesses { get; set; }
-
-        /// <summary>
         /// Gets or sets a value indicating whether to auto start all bots.
         /// </summary>
         /// <value>
@@ -174,19 +136,9 @@ namespace SteamBot
         public int ReceivingIndex = -1;
 
         /// <summary>
-        /// True if a MainUserHandler is specified in the settings and is set to AutoStart
-        /// </summary>
-        public bool HasMainUHLoaded = false;
-
-        /// <summary>
         /// Holds the index of the MainUserHandler bot if it exists, otherwise -1).
         /// </summary>
         public int MainIndex = -1;
-
-        /// <summary>
-        /// True if a CrateUserHandler is specified in the settings and is set to AutoStart
-        /// </summary>
-        public bool HasCrateUHLoaded = false;
 
         /// <summary>
         /// Holds the index of the CrateUserHandler bot if it exists, otherwise -1). Currently supports only one Crate handler.

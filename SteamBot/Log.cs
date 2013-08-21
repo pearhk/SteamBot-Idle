@@ -25,6 +25,7 @@ namespace SteamBot
         protected string _Bot;
         public LogLevel OutputToConsole;
         public ConsoleColor DefaultConsoleColor = ConsoleColor.White;
+        public bool IsDisposed { get; private set; }
 
         public Log (string logFile, string botName = "", LogLevel output = LogLevel.Info)
         {
@@ -34,11 +35,13 @@ namespace SteamBot
             _Bot = botName;
             OutputToConsole = output;
             Console.ForegroundColor = DefaultConsoleColor;
+            IsDisposed = false;
         }
 
         public void Dispose()
         {
             _FileStream.Dispose();
+            IsDisposed = true;
         }
 
         // This outputs a log entry of the level info.
@@ -89,7 +92,22 @@ namespace SteamBot
                 DateTime.Now.ToString ("yyyy-MM-dd HH:mm:ss"),
                 _LogLevel (level).ToUpper (), line
                 );
-            _FileStream.WriteLine (formattedString);
+
+            if (!IsDisposed)
+            {
+                _FileStream.WriteLine(formattedString);
+            }
+            else
+            {
+                _OutputLineToConsole(LogLevel.Error, String.Format(
+                "[{0} {1}] {2}: {3}",
+                (_Bot == null ? "(System)" : _Bot),
+                DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+                _LogLevel(level).ToUpper(),
+                "Writing to log file failed. Log is disposed."
+                ));
+            }
+
             if (level >= OutputToConsole)
                 _OutputLineToConsole (level, formattedString);
         }

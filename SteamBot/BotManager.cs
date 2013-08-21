@@ -15,6 +15,17 @@ namespace SteamBot
     /// </summary>
     public class BotManager
     {
+        protected enum BotMode { DoNothing, NormalHarvest, CrateManager }
+
+        // Maybe Create every Bot and just start those to be started?
+        // Have all Bots created once, at the same time?
+
+        Bot MainBot;
+        // Eventually multiple receiving?
+        Bot ReceivingBot;
+        Bot CrateBot;
+        Bot[] GivingBots;
+
         private readonly List<RunningBot> botProcs;
         private Log mainLog;
         private bool useSeparateProcesses;
@@ -50,8 +61,6 @@ namespace SteamBot
             if (ConfigObject == null)
                 return false;
 
-            useSeparateProcesses = ConfigObject.UseSeparateProcesses;
-
             mainLog = new Log(ConfigObject.MainLog, null, Log.LogLevel.Debug);
 
             for (int i = 0; i < ConfigObject.Bots.Length; i++)
@@ -59,16 +68,31 @@ namespace SteamBot
                 Configuration.BotInfo info = ConfigObject.Bots[i];
                 if (ConfigObject.AutoStartAllBots || info.AutoStart)
                 {
-                    mainLog.Info("Launching Bot " + info.DisplayName + "...");
+                    mainLog.Info("Configured Bot: " + info.DisplayName + ".");
                 }
 
-                var v = new RunningBot(useSeparateProcesses, i, ConfigObject);
+                var v = new RunningBot(i, ConfigObject);
                 botProcs.Add(v);
             }
 
             return true;
         }
 
+        #region IdleManager
+        internal void StartManaging()
+        {
+            var startedOk = StartBots();
+
+            if (!startedOk)
+            {
+                mainLog.Error("Error starting the bots because either the configuration was bad or because the log file was not opened.");
+                return;
+            }
+
+        }
+        #endregion
+
+        #region Starting and Stopping Bots
         /// <summary>
         /// Starts the bots that have been configured, starting Receiving, Crate, and Main UserHandlers first.
         /// </summary>
@@ -80,21 +104,21 @@ namespace SteamBot
 
             // Start special UserHandlers if they exist.
             // Unsure why only AutoStartAllBots has the Sleep delay.
-            if (ConfigObject.ReceivingIndex > -1)
+            if (ConfigObject.ReceivingIndex > -1 && (ConfigObject.AutoStartAllBots || botProcs[ConfigObject.ReceivingIndex].BotConfig.AutoStart))
             {
                 mainLog.Info("ReceivingUserHandler Found. Starting " + botProcs[ConfigObject.ReceivingIndex].BotConfig.DisplayName + "...");
                 botProcs[ConfigObject.ReceivingIndex].Start();
                 Thread.Sleep(2000);
             }
 
-            if (ConfigObject.CrateIndex > -1)
+            if (ConfigObject.CrateIndex > -1 && (ConfigObject.AutoStartAllBots || botProcs[ConfigObject.CrateIndex].BotConfig.AutoStart))
             {
                 mainLog.Info("CrateUserHandler Found. Starting " + botProcs[ConfigObject.CrateIndex].BotConfig.DisplayName + "...");
                 botProcs[ConfigObject.CrateIndex].Start();
                 Thread.Sleep(2000);
             }
 
-            if (ConfigObject.MainIndex > -1)
+            if (ConfigObject.MainIndex > -1 && (ConfigObject.AutoStartAllBots || botProcs[ConfigObject.MainIndex].BotConfig.AutoStart))
             {
                 mainLog.Info("MainUserHandler Found. Starting " + botProcs[ConfigObject.MainIndex].BotConfig.DisplayName + "...");
                 botProcs[ConfigObject.MainIndex].Start();
@@ -102,13 +126,27 @@ namespace SteamBot
             }
 
             // Starting the rest.
-            foreach (var runningBot in botProcs)
+            if (ConfigObject.AutoStartAllBots)
             {
-                if (runningBot.BotConfig.BotControlClass == "SteamBot.GivingUserHandler")
-                    runningBot.Start();
+                foreach (var runningBot in botProcs)
+                {
+                    if (runningBot.BotConfig.BotControlClass == "SteamBot.GivingUserHandler")
+                        runningBot.Start();
 
-                // Will probably make this sleep timer a variable in config.
-                Thread.Sleep(2000);
+                    // Will probably make this sleep timer a variable in config.
+                    Thread.Sleep(2000);
+                }
+            }
+            else
+            {
+                foreach (var runningBot in botProcs)
+                {
+                    if (runningBot.BotConfig.AutoStart && runningBot.BotConfig.BotControlClass == "SteamBot.GivingUserHandler")
+                        runningBot.Start();
+
+                    // Will probably make this sleep timer a variable in config.
+                    Thread.Sleep(2000);
+                }
             }
 
             return true;
@@ -119,7 +157,7 @@ namespace SteamBot
         /// </summary>
         public void StopBots()
         {
-            mainLog.Debug("Shutting down all bot processes.");
+            mainLog.Debug("Shutting down all bots.");
             foreach (var botProc in botProcs)
             {
                 botProc.Stop();
@@ -132,7 +170,7 @@ namespace SteamBot
         /// <param name="index">A zero-based index.</param>
         public void StopBot(int index)
         {
-            mainLog.Debug(String.Format("Killing bot process {0}.", index));
+            mainLog.Debug(String.Format("Killing bot at index {0}.", index));
             if (index < botProcs.Count)
             {
                 botProcs[index].Stop();
@@ -189,7 +227,9 @@ namespace SteamBot
             }
             
         }
+        #endregion
 
+        #region Bot Messages
         /// <summary>
         /// Sets the SteamGuard auth code on the given bot
         /// </summary>
@@ -199,18 +239,7 @@ namespace SteamBot
         {
             if (index < botProcs.Count)
             {
-                if (botProcs[index].UsingProcesses)
-                {
-                    //  Write out auth code to the bot process' stdin
-                    StreamWriter BotStdIn = botProcs[index].BotProcess.StandardInput;
-
-                    BotStdIn.WriteLine("auth " + AuthCode);
-                    BotStdIn.Flush();
-                }
-                else
-                {
-                    botProcs[index].TheBot.AuthCode = AuthCode;
-                }
+                botProcs[index].TheBot.AuthCode = AuthCode;
             }
         }
 
@@ -226,18 +255,7 @@ namespace SteamBot
             {
                 if (botProcs[index].IsRunning)
                 {
-                    if (botProcs[index].UsingProcesses)
-                    {
-                        //  Write out the exec command to the bot process' stdin
-                        StreamWriter BotStdIn = botProcs[index].BotProcess.StandardInput;
-
-                        BotStdIn.WriteLine("exec " + command);
-                        BotStdIn.Flush();
-                    }
-                    else
-                    {
-                        botProcs[index].TheBot.HandleBotCommand(command);
-                    }
+                    botProcs[index].TheBot.HandleBotCommand(command);
                 }
                 else
                 {
@@ -249,6 +267,7 @@ namespace SteamBot
                 mainLog.Warn(String.Format("Invalid Bot index: {0}", index));
             }
         }
+        #endregion
 
         /// <summary>
         /// A method to return an instance of the <c>bot.BotControlClass</c>.
@@ -275,51 +294,34 @@ namespace SteamBot
         /// </summary>
         private class RunningBot
         {
-            private const string BotExecutable = "SteamBot.exe";
-            private readonly Configuration config;
-
-            /// <summary>
-            /// Creates a new instance of <see cref="RunningBot"/> class.
-            /// </summary>
-            /// <param name="useProcesses">
-            /// <c>true</c> indicates that this bot is ran in a thread;
-            /// <c>false</c> indicates it is ran in a separate process.
-            /// </param>
-            /// <param name="index">The index of the bot in the configuration.</param>
-            /// <param name="config">The bots configuration object.</param>
-            public RunningBot(bool useProcesses, int index, Configuration config)
-            {
-                this.config = config;
-                UsingProcesses = useProcesses;
-                BotConfigIndex = index;
-                BotConfig = config.Bots[BotConfigIndex];
-                this.config = config;
-            }
-
-            public bool UsingProcesses { get; private set; }
-
             public int BotConfigIndex { get; private set; }
 
             public Configuration.BotInfo BotConfig { get; private set; }
 
-            public Process BotProcess { get; set; }
+            public Bot TheBot { get; private set; }
 
-            // will not be null in threaded mode. will be null in process mode.
-            public Bot TheBot { get; set; }
+            public bool IsRunning { get; private set; }
 
-            public bool IsRunning = false;
+            /// <summary>
+            /// Creates a new instance of <see cref="RunningBot"/> class as well as the corresponding Bot object.
+            /// </summary>
+            /// <param name="index">The index of the bot in the configuration.</param>
+            /// <param name="config">The bots configuration object.</param>
+            public RunningBot(int index, Configuration config)
+            {
+                BotConfigIndex = index;
+                BotConfig = config.Bots[BotConfigIndex];
+
+                Bot b = new Bot(BotConfig,
+                                config.ApiKey,
+                                UserHandlerCreator);
+
+                TheBot = b;
+            }
 
             public void Stop()
             {
-                if (IsRunning && UsingProcesses)
-                {
-                    if (!BotProcess.HasExited)
-                    {
-                        BotProcess.Kill();
-                        IsRunning = false;
-                    }
-                }
-                else if (TheBot != null && TheBot.IsRunning)
+                if (TheBot.IsRunning)
                 {
                     TheBot.StopBot();
                     IsRunning = false;
@@ -328,76 +330,12 @@ namespace SteamBot
 
             public void Start()
             {
-                if (UsingProcesses)
+                if (!TheBot.IsRunning)
                 {
-                    if (!IsRunning)
-                    {
-                        SpawnSteamBotProcess(BotConfigIndex);
-                        IsRunning = true;
-                    }
-                }
-                else if (TheBot == null)
-                {
-                    SpawnBotThread(BotConfig);
-                    IsRunning = true;
-                }
-                else if (!TheBot.IsRunning)
-                {
-                    TheBot.RestartBot();
+                    TheBot.StartBot();
                     IsRunning = true;
                 }
             }
-
-            private void SpawnSteamBotProcess(int botIndex)
-            {
-                // we don't do any of the standard output redirection below. 
-                // we could but we lose the nice console colors that the Log class uses.
-
-                Process botProc = new Process();
-                botProc.StartInfo.FileName = BotExecutable;
-                botProc.StartInfo.Arguments = @"-bot " + botIndex;
-
-                // Set UseShellExecute to false for redirection.
-                botProc.StartInfo.UseShellExecute = false;
-
-                // Redirect the standard output.  
-                // This stream is read asynchronously using an event handler.
-                botProc.StartInfo.RedirectStandardOutput = false;
-
-                // Redirect standard input to allow manager commands to be read properly
-                botProc.StartInfo.RedirectStandardInput = true;
-
-                // Set our event handler to asynchronously read the output.
-                //botProc.OutputDataReceived += new DataReceivedEventHandler(BotStdOutHandler);
-
-                botProc.Start();
-
-                BotProcess = botProc;
-
-                // Start the asynchronous read of the bot output stream.
-                //botProc.BeginOutputReadLine();
-            }
-
-
-            private void SpawnBotThread(Configuration.BotInfo botConfig)
-            {
-                // the bot object itself is threaded so we just build it and start it.
-                Bot b = new Bot(botConfig,
-                                config.ApiKey,
-                                UserHandlerCreator,
-                                true);
-
-                TheBot = b;
-                TheBot.StartBot();
-            }
-
-            //private static void BotStdOutHandler(object sender, DataReceivedEventArgs e)
-            //{
-            //    if (!String.IsNullOrEmpty(e.Data))
-            //    {
-            //        Console.WriteLine(e.Data);
-            //    }
-            //}
         }
 
         #endregion Nested RunningBot class

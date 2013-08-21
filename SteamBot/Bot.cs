@@ -15,6 +15,7 @@ namespace SteamBot
 {
     public class Bot
     {
+        public Configuration.BotInfo Config;
         public string BotControlClass;
         // If the bot is logged in fully or not.  This is only set
         // when it is.
@@ -77,7 +78,7 @@ namespace SteamBot
 
         string sessionId;
         string token;
-        bool isprocess;
+
         public bool IsRunning = false;
 
         public string AuthCode { get; set; }
@@ -91,8 +92,9 @@ namespace SteamBot
 
         private BackgroundWorker backgroundWorker;
 
-        public Bot(Configuration.BotInfo config, string apiKey, UserHandlerCreator handlerCreator, bool debug = false, bool process = false)
+        public Bot(Configuration.BotInfo config, string apiKey, UserHandlerCreator handlerCreator, bool debug = false)
         {
+            Config = config;
             logOnDetails = new SteamUser.LogOnDetails
             {
                 Username = config.Username,
@@ -104,9 +106,7 @@ namespace SteamBot
             MaximiumActionGap = config.MaximumActionGap;
             DisplayNamePrefix = config.DisplayNamePrefix;
             TradePollingInterval = config.TradePollingInterval <= 100 ? 800 : config.TradePollingInterval;
-            Admins = config.Admins;
             this.apiKey  = apiKey;
-            this.isprocess = process;
             try
             {
                 LogLevel = (Log.LogLevel)Enum.Parse(typeof(Log.LogLevel), config.LogLevel, true);
@@ -117,24 +117,24 @@ namespace SteamBot
                 LogLevel = Log.LogLevel.Info;
             }
             this.LogFile = config.LogFile;
-            log = new Log (this.LogFile, this.DisplayName, LogLevel);
+            //log = new Log (this.LogFile, this.DisplayName, LogLevel);
             CreateHandler = handlerCreator;
             BotControlClass = config.BotControlClass;
 
-            // Hacking around https
-            ServicePointManager.ServerCertificateValidationCallback += SteamWeb.ValidateRemoteCertificate;
+            //// Hacking around https
+            //ServicePointManager.ServerCertificateValidationCallback += SteamWeb.ValidateRemoteCertificate;
 
-            log.Debug("Initializing Steam Bot...");
-            SteamClient = new SteamClient();
-            SteamTrade = SteamClient.GetHandler<SteamTrading>();
-            SteamUser = SteamClient.GetHandler<SteamUser>();
-            SteamFriends = SteamClient.GetHandler<SteamFriends>();
-            SteamGameCoordinator = SteamClient.GetHandler<SteamGameCoordinator>();
+            //log.Debug("Initializing Steam Bot...");
+            //SteamClient = new SteamClient();
+            //SteamTrade = SteamClient.GetHandler<SteamTrading>();
+            //SteamUser = SteamClient.GetHandler<SteamUser>();
+            //SteamFriends = SteamClient.GetHandler<SteamFriends>();
+            //SteamGameCoordinator = SteamClient.GetHandler<SteamGameCoordinator>();
 
-            backgroundWorker = new BackgroundWorker { WorkerSupportsCancellation = true };
-            backgroundWorker.DoWork += BackgroundWorkerOnDoWork;
-            backgroundWorker.RunWorkerCompleted += BackgroundWorkerOnRunWorkerCompleted;
-            backgroundWorker.RunWorkerAsync();
+            //backgroundWorker = new BackgroundWorker { WorkerSupportsCancellation = true };
+            //backgroundWorker.DoWork += BackgroundWorkerOnDoWork;
+            //backgroundWorker.RunWorkerCompleted += BackgroundWorkerOnRunWorkerCompleted;
+            //backgroundWorker.RunWorkerAsync();
         }
 
         /// <summary>
@@ -148,39 +148,16 @@ namespace SteamBot
         /// <summary>
         /// Starts the callback thread and connects to Steam via SteamKit2.
         /// </summary>
-        /// <remarks>
-        /// THIS NEVER RETURNS.
-        /// </remarks>
-        /// <returns><c>true</c>. See remarks</returns>
+        /// <returns><c>true</c></returns>
         public bool StartBot()
-        {
-            IsRunning = true;
-
-            log.Info("Connecting...");
-
-            if (!backgroundWorker.IsBusy)
-                // background worker is not running
-                backgroundWorker.RunWorkerAsync();
-
-            SteamClient.Connect();
-
-            IsRunning = true;
-            
-            log.Info("Done Loading Bot!");
-
-            return true; // never get here
-        }
-
-        /// <summary>
-        /// Starts the callback thread and connects to Steam via SteamKit2.
-        /// </summary>
-        /// <returns><c>true</c>.</returns>
-        public bool RestartBot()
         {
             if (IsRunning)
                 return false;
 
-            log = new Log(LogFile, this.DisplayName, LogLevel);
+            IsRunning = true;
+
+            if (log == null || log.IsDisposed)
+                log = new Log(LogFile, DisplayName, LogLevel);
 
             // Hacking around https
             ServicePointManager.ServerCertificateValidationCallback += SteamWeb.ValidateRemoteCertificate;
@@ -196,12 +173,11 @@ namespace SteamBot
             backgroundWorker.DoWork += BackgroundWorkerOnDoWork;
             backgroundWorker.RunWorkerCompleted += BackgroundWorkerOnRunWorkerCompleted;
             backgroundWorker.RunWorkerAsync();
+
             log.Info("Connecting...");
 
             SteamClient.Connect();
-
-            IsRunning = true;
-
+            
             log.Info("Done Loading Bot!");
 
             return true;
@@ -273,15 +249,15 @@ namespace SteamBot
             catch (ObjectDisposedException e)
             {
                 // Writing to console because odds are the error was caused by a disposed log.
-                Console.WriteLine(string.Format("Exception caught in BotCommand Thread: {0}", e));
+                log.Error(String.Format("Exception caught in BotCommand Thread: {0}", e));
                 if (!this.IsRunning)
                 {
-                    Console.WriteLine("The Bot is no longer running and could not write to the log. Try Starting this bot first.");
+                    log.Warn("The Bot is no longer running and could not write to the log. Try Starting this bot first.");
                 }
             }
             catch (Exception e)
             {
-                Console.WriteLine(string.Format("Exception caught in BotCommand Thread: {0}", e));
+                log.Error(String.Format("Exception caught in BotCommand Thread: {0}", e));
             }
         }
 

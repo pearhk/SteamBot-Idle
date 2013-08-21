@@ -9,14 +9,11 @@ namespace SteamBot
     {
         private static OptionSet opts = new OptionSet()
                                      {
-                                         {"bot=", "launch a configured bot given that bots index in the configuration array.", 
-                                             b => botIndex = Convert.ToInt32(b) } ,
-                                             { "help", "shows this help text", p => showHelp = (p != null) }
+                                         { "help", "shows this help text", p => showHelp = (p != null) }
                                      };
 
         private static bool showHelp;
 
-        private static int botIndex = -1;
         private static BotManager manager;
         private static bool isclosing = false;
 
@@ -34,80 +31,11 @@ namespace SteamBot
                 Console.ReadLine();
                 return;
             }
-
-            if (args.Length == 0)
-            {
-                BotManagerMode();
-            }
-            else if (botIndex > -1)
-            {
-                BotMode(botIndex);
-            }
+                
+            BotManagerMode();
         }
 
         #region SteamBot Operational Modes
-
-        // This mode is to run a single Bot until it's terminated.
-        private static void BotMode(int botIndex)
-        {
-            if (!File.Exists("settings.json"))
-            {
-                Console.WriteLine("No settings.json file found.");
-                return;
-            }
-
-            Configuration configObject;
-            try
-            {
-                configObject = Configuration.LoadConfiguration("settings.json");
-            }
-            catch (Newtonsoft.Json.JsonReaderException)
-            {
-                // handle basic json formatting screwups
-                Console.WriteLine("settings.json file is corrupt or improperly formatted.");
-                return;
-            }
-
-            if (botIndex >= configObject.Bots.Length)
-            {
-                Console.WriteLine("Invalid bot index.");
-                return;
-            }
-
-            Bot b = new Bot(configObject.Bots[botIndex], configObject.ApiKey, BotManager.UserHandlerCreator, true, true);
-            Console.Title = "Bot Manager";
-            b.StartBot();
-
-            string AuthSet = "auth";
-            string ExecCommand = "exec";
-
-            // this loop is needed to keep the botmode console alive.
-            // instead of just sleeping, this loop will handle console input
-            while (true)
-            {
-                string inputText = Console.ReadLine();
-
-                if (String.IsNullOrEmpty(inputText))
-                    continue;
-
-                // Small parse for console input
-                var c = inputText.Trim();
-
-                var cs = c.Split(' ');
-
-                if (cs.Length > 1)
-                {
-                    if (cs[0].Equals(AuthSet, StringComparison.CurrentCultureIgnoreCase))
-                    {
-                        b.AuthCode = cs[1].Trim();
-                    }
-                    else if (cs[0].Equals(ExecCommand, StringComparison.CurrentCultureIgnoreCase))
-                    {
-                        b.HandleBotCommand(c.Remove(0, cs[0].Length + 1));
-                    }
-                }
-            }
-        }
 
         // This mode is to manage child bot processes and take use command line inputs
         private static void BotManagerMode()
@@ -127,53 +55,8 @@ namespace SteamBot
             }
             else
             {
-                if (manager.ConfigObject.UseSeparateProcesses)
-                    SetConsoleCtrlHandler(ConsoleCtrlCheck, true);
-
-                if (manager.ConfigObject.AutoStartAllBots)
-                {
-                    var startedOk = manager.StartBots();
-
-                    if (!startedOk)
-                    {
-                        Console.WriteLine(
-                            "Error starting the bots because either the configuration was bad or because the log file was not opened.");
-                        Console.Write("Press Enter to exit...");
-                        Console.ReadLine();
-                    }
-                }
-                else
-                {
-                    // Start special UserHandlers if they exist and are set to AutoStart
-                    // Something tells me there's a simpler way to write this but I'm too tired to look.
-                    if (manager.ConfigObject.ReceivingIndex > -1 && manager.ConfigObject.Bots[manager.ConfigObject.ReceivingIndex].AutoStart)
-                    {
-                        Console.WriteLine("ReceivingUserHandler Found. Starting " + manager.ConfigObject.Bots[manager.ConfigObject.ReceivingIndex].DisplayName + "...");
-                        manager.StartBot(manager.ConfigObject.ReceivingIndex);
-                    }
-
-                    if (manager.ConfigObject.CrateIndex > -1 && manager.ConfigObject.Bots[manager.ConfigObject.CrateIndex].AutoStart)
-                    {
-                        Console.WriteLine("CrateUserHandler Found. Starting " + manager.ConfigObject.Bots[manager.ConfigObject.CrateIndex].DisplayName + "...");
-                        manager.StartBot(manager.ConfigObject.CrateIndex);
-                    }
-
-                    if (manager.ConfigObject.MainIndex > -1 && manager.ConfigObject.Bots[manager.ConfigObject.MainIndex].AutoStart)
-                    {
-                        Console.WriteLine("MainUserHandler Found. Starting " + manager.ConfigObject.Bots[manager.ConfigObject.MainIndex].DisplayName + "...");
-                        manager.StartBot(manager.ConfigObject.MainIndex);
-                    }
-
-                    foreach (var botInfo in manager.ConfigObject.Bots)
-                    {
-                        // Start the rest
-                        if (botInfo.BotControlClass == "SteamBot.GivingUserHandler" && botInfo.AutoStart)
-                        {
-                            // auto start this particual bot...
-                            manager.StartBot(botInfo.Username);
-                        }
-                    }
-                }
+                var IdleManager = new System.Threading.Thread(() => manager.StartManaging());
+                IdleManager.Start();
 
                 Console.WriteLine("Type help for bot manager commands. ");
                 Console.Write("botmgr > ");
