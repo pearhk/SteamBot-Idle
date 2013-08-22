@@ -17,24 +17,25 @@ namespace SteamBot
     {
         protected enum BotMode { DoNothing, NormalHarvest, CrateManager }
 
-        // Maybe Create every Bot and just start those to be started?
-        // Have all Bots created once, at the same time?
-
-        Bot MainBot;
+        private Bot MainBot;
         // Eventually multiple receiving?
-        Bot ReceivingBot;
-        Bot CrateBot;
-        Bot[] GivingBots;
+        private Bot ReceivingBot;
+        private Bot CrateBot;
+        private List<Bot> GivingBots;
+
+        #region Crate Defindexes
+        private static readonly int[] StandardCrates = new int[3] { 5022, 5041, 5045 };
+        // Salvaged and the new crates changed to rare drops (robo and summer 2013)
+        private static readonly int[] RareDropCrates = new int[3] { 5068, 5635, 5639 };
+        #endregion
 
         private readonly List<RunningBot> botProcs;
         private Log mainLog;
-        private bool useSeparateProcesses;
 
         public BotManager()
         {
-            useSeparateProcesses = false;
-            new List<Bot>();
             botProcs = new List<RunningBot>();
+            GivingBots = new List<Bot>();
         }
 
         public Configuration ConfigObject { get; private set; }
@@ -79,15 +80,22 @@ namespace SteamBot
         }
 
         #region IdleManager
-        internal void StartManaging()
+        internal bool Setup()
         {
             var startedOk = StartBots();
-
             if (!startedOk)
             {
                 mainLog.Error("Error starting the bots because either the configuration was bad or because the log file was not opened.");
-                return;
+                return false;
             }
+
+
+
+            return true;
+        }
+
+        internal void StartManaging()
+        {
 
         }
         #endregion
@@ -104,48 +112,55 @@ namespace SteamBot
 
             // Start special UserHandlers if they exist.
             // Unsure why only AutoStartAllBots has the Sleep delay.
-            if (ConfigObject.ReceivingIndex > -1 && (ConfigObject.AutoStartAllBots || botProcs[ConfigObject.ReceivingIndex].BotConfig.AutoStart))
+            if (ConfigObject.ReceivingIndex > -1)
             {
-                mainLog.Info("ReceivingUserHandler Found. Starting " + botProcs[ConfigObject.ReceivingIndex].BotConfig.DisplayName + "...");
-                botProcs[ConfigObject.ReceivingIndex].Start();
-                Thread.Sleep(2000);
-            }
+                ReceivingBot = botProcs[ConfigObject.ReceivingIndex].TheBot;
 
-            if (ConfigObject.CrateIndex > -1 && (ConfigObject.AutoStartAllBots || botProcs[ConfigObject.CrateIndex].BotConfig.AutoStart))
-            {
-                mainLog.Info("CrateUserHandler Found. Starting " + botProcs[ConfigObject.CrateIndex].BotConfig.DisplayName + "...");
-                botProcs[ConfigObject.CrateIndex].Start();
-                Thread.Sleep(2000);
-            }
-
-            if (ConfigObject.MainIndex > -1 && (ConfigObject.AutoStartAllBots || botProcs[ConfigObject.MainIndex].BotConfig.AutoStart))
-            {
-                mainLog.Info("MainUserHandler Found. Starting " + botProcs[ConfigObject.MainIndex].BotConfig.DisplayName + "...");
-                botProcs[ConfigObject.MainIndex].Start();
-                Thread.Sleep(2000);
-            }
-
-            // Starting the rest.
-            if (ConfigObject.AutoStartAllBots)
-            {
-                foreach (var runningBot in botProcs)
+                if (ConfigObject.AutoStartAllBots || botProcs[ConfigObject.ReceivingIndex].BotConfig.AutoStart)
                 {
-                    if (runningBot.BotConfig.BotControlClass == "SteamBot.GivingUserHandler")
-                        runningBot.Start();
-
-                    // Will probably make this sleep timer a variable in config.
+                    mainLog.Info("ReceivingUserHandler Found. Starting " + botProcs[ConfigObject.ReceivingIndex].BotConfig.DisplayName + "...");
+                    botProcs[ConfigObject.ReceivingIndex].Start();
                     Thread.Sleep(2000);
                 }
             }
-            else
-            {
-                foreach (var runningBot in botProcs)
-                {
-                    if (runningBot.BotConfig.AutoStart && runningBot.BotConfig.BotControlClass == "SteamBot.GivingUserHandler")
-                        runningBot.Start();
 
-                    // Will probably make this sleep timer a variable in config.
+            if (ConfigObject.CrateIndex > -1)
+            {
+                CrateBot = botProcs[ConfigObject.CrateIndex].TheBot;
+
+                if (ConfigObject.AutoStartAllBots || botProcs[ConfigObject.CrateIndex].BotConfig.AutoStart)
+                {
+                    mainLog.Info("CrateUserHandler Found. Starting " + botProcs[ConfigObject.CrateIndex].BotConfig.DisplayName + "...");
+                    botProcs[ConfigObject.CrateIndex].Start();
                     Thread.Sleep(2000);
+                }
+            }
+
+            if (ConfigObject.MainIndex > -1)
+            {
+                MainBot = botProcs[ConfigObject.MainIndex].TheBot;
+
+                if (ConfigObject.AutoStartAllBots || botProcs[ConfigObject.MainIndex].BotConfig.AutoStart)
+                {
+                    mainLog.Info("MainUserHandler Found. Starting " + botProcs[ConfigObject.MainIndex].BotConfig.DisplayName + "...");
+                    botProcs[ConfigObject.MainIndex].Start();
+                    Thread.Sleep(2000);
+                }
+            }
+
+            // Starting the rest.
+            foreach (var runningBot in botProcs)
+            {
+                if (runningBot.BotConfig.BotControlClass == "SteamBot.GivingUserHandler")
+                {
+                    GivingBots.Add(runningBot.TheBot);
+
+                    if (ConfigObject.AutoStartAllBots || runningBot.BotConfig.AutoStart)
+                    {
+                        runningBot.Start();
+                        // Will probably make this sleep timer a variable in config.
+                        Thread.Sleep(2000);
+                    }
                 }
             }
 

@@ -31,7 +31,7 @@ namespace SteamBot
                 Console.ReadLine();
                 return;
             }
-                
+
             BotManagerMode();
         }
 
@@ -45,38 +45,44 @@ namespace SteamBot
             manager = new BotManager();
 
             var loadedOk = manager.LoadConfiguration("settings.json");
-
             if (!loadedOk)
             {
                 Console.WriteLine(
                     "Configuration file Does not exist or is corrupt. Please rename 'settings-template.json' to 'settings.json' and modify the settings to match your environment");
                 Console.Write("Press Enter to exit...");
                 Console.ReadLine();
+                return;
             }
-            else
-            {
-                var IdleManager = new System.Threading.Thread(() => manager.StartManaging());
-                IdleManager.Start();
 
-                Console.WriteLine("Type help for bot manager commands. ");
+            var setupOk = manager.Setup();
+            if (!setupOk)
+            {
+                Console.Write("Press Enter to exit...");
+                Console.ReadLine();
+                return;
+            }
+
+            var IdleManager = new System.Threading.Thread(() => manager.StartManaging());
+            IdleManager.Start();
+
+            Console.WriteLine("Type help for bot manager commands. ");
+            Console.Write("botmgr > ");
+
+            var bmi = new BotManagerInterpreter(manager);
+
+            // command interpreter loop.
+            do
+            {
+                string inputText = Console.ReadLine();
+
+                if (String.IsNullOrEmpty(inputText))
+                    continue;
+
+                bmi.CommandInterpreter(inputText);
+
                 Console.Write("botmgr > ");
 
-                var bmi = new BotManagerInterpreter(manager);
-
-                // command interpreter loop.
-                do
-                {
-                    string inputText = Console.ReadLine();
-
-                    if (String.IsNullOrEmpty(inputText))
-                        continue;
-
-                    bmi.CommandInterpreter(inputText);
-
-                    Console.Write("botmgr > ");
-
-                } while (!isclosing);
-            }
+            } while (!isclosing);
         }
 
         #endregion Bot Modes
@@ -98,7 +104,7 @@ namespace SteamBot
                     isclosing = true;
                     break;
             }
-            
+
             return true;
         }
 
